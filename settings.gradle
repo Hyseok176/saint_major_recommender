@@ -1,0 +1,2 @@
+rootProject.name = 'course_analyzer'
+include 'course_analyzer'
