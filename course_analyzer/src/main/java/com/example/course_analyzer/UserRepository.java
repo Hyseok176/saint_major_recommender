@@ -2,6 +2,10 @@ package com.example.course_analyzer;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface UserRepository extends JpaRepository<User, Long> {
-    User findByUsername(String username);
+import org.springframework.data.jpa.repository.Query;
+
+public interface UserRepository extends JpaRepository<User, String> {
+    @Query("SELECT MAX(u.userOrder) FROM User u")
+    Long findMaxUserOrder();
+    
 }

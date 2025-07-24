@@ -40,7 +40,7 @@ public class CourseController {
                         Model model,
                         RedirectAttributes redirectAttributes) {
         System.out.println("로그인 시도: 사용자 이름 = " + username); // 콘솔 출력
-        User user = userRepository.findByUsername(username);
+        User user = userRepository.findById(username).orElse(null);
         if (user != null && user.getPassword().equals(password)) { // 간단한 비밀번호 확인
             System.out.println("로그인 성공: 사용자 ID = " + user.getId() + ", 사용자 이름 = " + username); // 콘솔 출력
             redirectAttributes.addAttribute("userId", user.getId()); // userId 대신 user.getId() 사용
@@ -66,16 +66,19 @@ public class CourseController {
                            @RequestParam("password") String password,
                            Model model) {
         System.out.println("회원가입 시도: 사용자 이름 = " + username + ", 비밀번호 = " + password); // 콘솔 출력
-        if (userRepository.findByUsername(username) != null) {
+        if (userRepository.findById(username).isPresent()) {
             System.out.println("회원가입 실패: 이미 존재하는 사용자 이름입니다."); // 콘솔 출력
             model.addAttribute("error", "이미 존재하는 사용자 이름입니다.");
             return "index";
         }
         User newUser = new User();
-        newUser.setUsername(username);
+        
         newUser.setPassword(password);
+        newUser.setId(username); // 학번을 ID로 설정
+        Long maxOrder = userRepository.findMaxUserOrder();
+        newUser.setUserOrder(maxOrder != null ? maxOrder + 1 : 1L);
         userRepository.save(newUser);
-        System.out.println("회원가입 성공: 사용자 ID = " + newUser.getId() + ", 사용자 이름 = " + newUser.getUsername()); // 콘솔 출력
+        System.out.println("회원가입 성공: 사용자 ID = " + newUser.getId() + ", 사용자 이름 = " + username); // 콘솔 출력
         model.addAttribute("message", "회원가입이 완료되었습니다. 로그인해주세요.");
         return "index";
     }
@@ -83,7 +86,7 @@ public class CourseController {
 
     @PostMapping("/upload")
     public String uploadFile(
-            @RequestParam("userId") Long userId, // userId를 Long 타입으로 변경
+            @RequestParam("userId") String userId, // userId를 String 타입으로 변경
             @RequestParam("file") MultipartFile file,
             Model model,
             RedirectAttributes redirectAttributes) {
@@ -108,7 +111,7 @@ public class CourseController {
     }
 
     @GetMapping("/results")
-    public String showResults(@RequestParam("userId") Long userId, Model model) {
+    public String showResults(@RequestParam("userId") String userId, Model model) {
         System.out.println("/results 페이지 접근: 사용자 ID = " + userId);
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
         List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);

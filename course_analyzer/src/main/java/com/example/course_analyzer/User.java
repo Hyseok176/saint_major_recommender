@@ -12,8 +12,8 @@ import lombok.Data;
 @Table(name = "users") // 테이블 이름을 "users"로 명시적으로 지정
 public class User {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String username;
+    private String id;
+    
     private String password;
+    private Long userOrder;
 }
