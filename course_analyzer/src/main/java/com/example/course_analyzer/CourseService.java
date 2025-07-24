@@ -79,52 +79,54 @@ public class CourseService {
 
         // Step 3: Grouping and Formatting
         Map<String, List<Course>> coursesByFormattedSemester = new LinkedHashMap<>();
-        Map<String, String> semesterInfoToFormattedKeyMap = new HashMap<>(); // SemesterInfo -> "X학기 (YYYY년 X학기)"
+        Map<String, String> semesterIdentifierToFormattedKeyMap = new HashMap<>(); // "2021-1" -> "1학기 (2021년 1학기)"
         int continuousSemesterCounter = 0;
-        SemesterInfo lastRegularSemesterInfo = null; // To track the last 1 or 2 semester
+        int lastRegularSemesterNumber = 0;
 
         for (Course course : processedCourses) {
             SemesterInfo currentSemesterInfo = new SemesterInfo(course.getSemester());
-            SemesterInfo targetSemesterInfoForGrouping;
-            String remark = "";
+            String semesterIdentifier = currentSemesterInfo.toString();
+            String formattedKey;
 
-            if (currentSemesterInfo.isRegularSemester()) {
-                targetSemesterInfoForGrouping = currentSemesterInfo;
-                lastRegularSemesterInfo = currentSemesterInfo; // Update last regular semester
+            if (semesterIdentifierToFormattedKeyMap.containsKey(semesterIdentifier)) {
+                formattedKey = semesterIdentifierToFormattedKeyMap.get(semesterIdentifier);
             } else {
-                if (lastRegularSemesterInfo == null) {
-                    targetSemesterInfoForGrouping = currentSemesterInfo;
-                } else {
-                    targetSemesterInfoForGrouping = lastRegularSemesterInfo;
+                String semesterTypeDisplay;
+                if (currentSemesterInfo.isRegularSemester()) {
+                    continuousSemesterCounter++;
+                    lastRegularSemesterNumber = continuousSemesterCounter;
+                    semesterTypeDisplay = currentSemesterInfo.getType().equals("1") ? "1학기" : "2학기";
+                    formattedKey = String.format("%d학기 (%s년 %s)",
+                            continuousSemesterCounter,
+                            currentSemesterInfo.getYear(),
+                            semesterTypeDisplay);
+                } else { // Seasonal semester
+                    double seasonalSemesterNumber = lastRegularSemesterNumber + 0.5;
+                    String remark;
+                    if (currentSemesterInfo.getType().equals("S")) {
+                        semesterTypeDisplay = "여름학기";
+                        remark = "여름학기 수강";
+                    } else {
+                        semesterTypeDisplay = "겨울학기";
+                        remark = "겨울학기 수강";
+                    }
+                    course.setRemark(remark);
+                    formattedKey = String.format("%.1f학기 (%s년 %s)",
+                            seasonalSemesterNumber,
+                            currentSemesterInfo.getYear(),
+                            semesterTypeDisplay);
                 }
-                remark = currentSemesterInfo.getType().equals("S") ? "여름학기 수강" : "겨울학기 수강";
-                course.setRemark(remark);
+                semesterIdentifierToFormattedKeyMap.put(semesterIdentifier, formattedKey);
             }
 
-            String formattedKey;
-            if (!semesterInfoToFormattedKeyMap.containsKey(targetSemesterInfoForGrouping.toString())) {
-                continuousSemesterCounter++;
-                String semesterTypeDisplayInParentheses;
-                String targetType = targetSemesterInfoForGrouping.getType();
-                switch (targetType) {
-                    case "1": semesterTypeDisplayInParentheses = "1학기"; break;
-                    case "2": semesterTypeDisplayInParentheses = "2학기"; break;
-                    case "S": semesterTypeDisplayInParentheses = "여름학기"; break;
-                    case "W": semesterTypeDisplayInParentheses = "겨울학기"; break;
-                    default: semesterTypeDisplayInParentheses = targetType + "학기";
-                }
-
-                formattedKey = String.format("%d학기 (%s년 %s)",
-                                             continuousSemesterCounter,
-                                             targetSemesterInfoForGrouping.getYear(),
-                                             semesterTypeDisplayInParentheses);
-                semesterInfoToFormattedKeyMap.put(targetSemesterInfoForGrouping.toString(), formattedKey);
-            } else {
-                formattedKey = semesterInfoToFormattedKeyMap.get(targetSemesterInfoForGrouping.toString());
+            if (!currentSemesterInfo.isRegularSemester()) {
+                String remark = currentSemesterInfo.getType().equals("S") ? "여름학기 수강" : "겨울학기 수강";
+                course.setRemark(remark);
             }
 
             coursesByFormattedSemester.computeIfAbsent(formattedKey, k -> new ArrayList<>()).add(course);
         }
+
 
         // Step 4: Final Sorting within Semesters by course code
         coursesByFormattedSemester.forEach((semester, courseList) -> {
@@ -140,21 +142,21 @@ public class CourseService {
         semesterCourseRepository.findByUser(user).forEach(semesterCourseRepository::delete);
 
         coursesBySemester.forEach((semesterString, courses) -> {
-            // Extract the integer semester from the semesterString
-            int semesterNumber;
-            Pattern pattern = Pattern.compile("^(\\d+)학기");
+            // Extract the double semester from the semesterString
+            double semesterNumber;
+            Pattern pattern = Pattern.compile("^([\\d\\.]+)학기");
             Matcher matcher = pattern.matcher(semesterString);
             if (matcher.find()) {
-                semesterNumber = Integer.parseInt(matcher.group(1));
+                semesterNumber = Double.parseDouble(matcher.group(1));
             } else {
                 // Handle cases where the pattern doesn't match, perhaps log an error or default to 0
-                semesterNumber = 0; // Or throw an exception, depending on desired error handling
+                semesterNumber = 0.0; // Or throw an exception, depending on desired error handling
             }
 
             courses.forEach(course -> {
                 SemesterCourse sc = new SemesterCourse();
                 sc.setUser(user);
-                sc.setSemester(semesterNumber); // Use the extracted integer
+                sc.setSemester(semesterNumber); // Use the extracted double
                 sc.setCourseName(course.getCourseName());
                 sc.setGrade(course.getRemark());
                 semesterCourseRepository.save(sc);

@@ -118,14 +118,13 @@ public class CourseController {
             return "redirect:/";
         }
 
-        // SemesterCourse 리스트를 Map<Integer, List<Course>> 형태로 변환
-        Map<Integer, List<Course>> coursesBySemester = savedCourses.stream()
+        Map<Double, List<Course>> coursesBySemester = savedCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
                         LinkedHashMap::new, // 순서 유지를 위해 LinkedHashMap 사용
                         Collectors.mapping(sc -> new Course(sc.getCourseName(), sc.getGrade()), Collectors.toList())));
 
         // 학기 순서 정렬
-        Map<Integer, List<Course>> sortedCoursesBySemester = coursesBySemester.entrySet().stream()
+        Map<Double, List<Course>> sortedCoursesBySemester = coursesBySemester.entrySet().stream()
                 .sorted(Comparator.comparing(Map.Entry::getKey))
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,

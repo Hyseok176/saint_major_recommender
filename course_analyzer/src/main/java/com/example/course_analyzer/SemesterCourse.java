@@ -13,7 +13,7 @@ public class SemesterCourse {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private int semester;
+    private double semester;
     private String courseName;
     private String grade;
 
