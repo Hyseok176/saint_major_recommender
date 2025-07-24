@@ -21,3 +21,11 @@
         *   `CourseService.java`: 계절학기 식별 및 ".5" 학기 그룹화 로직 구현.
         *   `SemesterCourse.java`: `semester` 필드 타입을 `int`에서 `double`로 변경.
         *   `CourseController.java`: `showResults` 메서드에서 `Double` 타입 학기 정보를 처리하도록 수정.
+*   **사용자 ID 및 순서 관리 개선**:
+    *   `User` 엔티티의 `id` 필드를 사용자의 학번(String)으로 직접 사용하도록 변경. 기존 `username` 필드는 제거하여 중복을 없앰.
+    *   `UserRepository`: `findByUsername` 메서드 제거. `findMaxUserOrder()` 메서드를 추가하여 가장 큰 `userOrder` 값을 조회.
+    *   `CourseController`:
+        *   회원가입 시 사용자가 입력한 학번을 `User` 엔티티의 `id` 필드에 직접 저장.
+        *   `User` 엔티티에 `userOrder` 필드(Long 타입)를 추가하여 회원가입 순서대로 1, 2, 3... 값을 부여.
+        *   로그인 및 회원가입 로직에서 `user.getUsername()` 대신 `user.getId()`를 참조하도록 수정.
+    *   H2 데이터베이스 파일(`*.mv.db`, `*.trace.db`) 및 `error.txt` 파일은 `.gitignore`에 추가하여 Git 추적에서 제외.
