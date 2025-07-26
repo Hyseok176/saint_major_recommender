@@ -24,6 +24,9 @@ public class CourseService {
     @Autowired
     private SemesterCourseRepository semesterCourseRepository; // SemesterCourseRepository 주입
 
+    @Autowired
+    private SubjectRepository subjectRepository; // SubjectRepository 주입
+
     // analyzeFile now returns a raw list of courses, including re-taken ones
     public List<Course> analyzeFile(InputStream inputStream) throws IOException {
         List<Course> rawCourses = new ArrayList<>();
@@ -154,6 +157,11 @@ public class CourseService {
             }
 
             courses.forEach(course -> {
+                // Save subject information if it's new
+                if (!subjectRepository.existsById(course.getCourseCode())) {
+                    subjectRepository.save(new Subject(course.getCourseCode(), course.getCourseName()));
+                }
+
                 SemesterCourse sc = new SemesterCourse();
                 sc.setUser(user);
                 sc.setSemester(semesterNumber); // Use the extracted double

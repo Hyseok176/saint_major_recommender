@@ -38,7 +38,7 @@
         </div>
         <p th:if="${#maps.isEmpty(coursesBySemester)}">분석된 과목이 없습니다.</p>
 
-        <a th:href="@{/}" class="back-button">다시 분석하기</a>
+        <a th:href="@{/upload-file(userId=${userId})}" class="back-button">다시 분석하기</a>
     </div>
 </body>
 </html>

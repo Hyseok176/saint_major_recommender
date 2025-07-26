@@ -141,4 +141,10 @@ public class CourseController {
         System.out.println("/results 페이지에 데이터 전달 완료.");
         return "results";
     }
+
+    @GetMapping("/upload-file")
+    public String uploadFilePage(@RequestParam("userId") String userId, Model model) {
+        model.addAttribute("userId", userId);
+        return "upload-file";
+    }
 }
