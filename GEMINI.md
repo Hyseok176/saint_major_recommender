@@ -70,3 +70,10 @@
     *   **데이터베이스 스키마 및 연동 변경**: `SemesterCourse` 엔티티의 `courseName` 필드를 `courseCode`로 변경하고, 파일 업로드 시 `courseCode`를 저장하도록 수정했습니다. `/results` 페이지에서는 `courseCode`를 기반으로 `CourseMapping`에서 실제 과목 이름을 조회하여 표시합니다.
     *   **`Course` 엔티티 확장**: `Course` 클래스에 `percentage` 필드를 추가하여 추천 과목의 비율을 담을 수 있도록 했습니다.
     *   **관련 Repository 메서드 추가 및 임포트 수정**: `SemesterCourseRepository`에 `findByCourseCode` 메서드를, `CourseMappingRepository`에 `findByCourseCodeStartingWith` 메서드를 추가하고, 필요한 임포트 구문을 수정하여 컴파일 오류를 해결했습니다.
+*   **인코딩 및 파싱 문제 해결 (2025-07-26)**:
+    *   **파일 파싱 인코딩 문제**: `복소수함수론II`와 같이 한글과 로마 숫자가 혼합된 과목 이름이 깨지는 현상 발생.
+        *   `CourseService.java`의 `analyzeFile` 메서드에서 파일 입력 스트림을 읽을 때, 인코딩을 `EUC-KR`에서 `UTF-8`로 변경하여 문제를 해결.
+    *   **유연한 과목 정보 파싱**: 탭(tab)으로 구분되지 않고 모든 정보가 붙어있는 형식(예: `2024-2MAT4220복소수함수론II1.0A+`)의 과목 정보를 처리하지 못하는 문제 발생.
+        *   `CourseService.java`의 `analyzeFile` 메서드에 있는 정규 표현식을 수정하여, 탭 없이 이어붙여진 형식과 다양한 과목 코드(예: `MAT4220`, `MELRN001`)를 모두 처리할 수 있도록 개선.
+    *   **서버 응답 인코딩 오류**: 파일 업로드 후 결과를 표시하는 과정에서 `java.lang.IllegalArgumentException` (Unicode character cannot be encoded) 오류 발생.
+        *   `application.properties` 파일에 `server.servlet.encoding.charset=UTF-8`, `server.servlet.encoding.enabled=true`, `server.servlet.encoding.force=true` 설정을 추가하여 서버의 요청/응답 인코딩을 UTF-8로 강제하여 문제를 해결.

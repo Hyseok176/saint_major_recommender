@@ -32,13 +32,13 @@ public class CourseService {
         List<Course> rawCourses = new ArrayList<>();
         Map<String, String> majorInfo = new HashMap<>();
 
-        // Pattern to match lines containing course information (e.g., 2021-1 COR1015 스마트인간과사회)
-        Pattern coursePattern = Pattern.compile("^(20\\d{2}-[12SW])\\t([A-Z]{3}\\d{4})\\t(.+?)\\t.*$");
+        // Pattern to match lines containing course information, accommodating different formats
+        Pattern coursePattern = Pattern.compile("^(20\\d{2}-[12SW])([A-Z]+[0-9]+)(.+?)(\\d+\\.\\d+.*)?$");
 
         // Pattern to match major information (e.g., "1전공수학2전공경제3전공물리학")
         Pattern majorPattern = Pattern.compile("1전공(.+?)2전공(.+?)3전공(.+)");
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, Charset.forName("CP949")))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, java.nio.charset.StandardCharsets.UTF_8))) {
             String line;
             boolean majorInfoParsed = false;
 
@@ -61,7 +61,7 @@ public class CourseService {
                 if (courseMatcher.find()) {
                     String rawSemester = courseMatcher.group(1);
                     String courseCode = courseMatcher.group(2);
-                    String courseName = courseMatcher.group(3);
+                    String courseName = courseMatcher.group(3).trim();
 
                     // 과목 코드와 과목 이름 매핑 저장
                     if (!courseMappingRepository.existsById(courseCode)) {
