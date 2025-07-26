@@ -38,7 +38,7 @@
     </div>
     <p th:if="${#maps.isEmpty(recommendedCourses)}">추천 과목이 없습니다.</p>
 
-    <a th:href="@{/}" class="back-button">처음으로</a>
+    <a th:href="@{/results(userId=${userId})}" class="back-button">이전으로</a>
 </div>
 </body>
 </html>
