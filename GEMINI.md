@@ -69,3 +69,6 @@
     *   **"다음학기 구성하기" 기능 추가**: `results.html`에 "다음학기 구성하기" 버튼이 추가되었습니다. 이 버튼은 `/recommend` 경로로 `userId`와 함께 요청을 보내며, `recommend.html` 페이지로 이동합니다.
     *   **과목 추천 페이지 (`recommend.html`)**: `C:\banghak\next_sem.html`의 구조를 기반으로 한 새로운 Thymeleaf 템플릿 파일(`recommend.html`)이 생성되었습니다. 이 페이지는 `CourseService.recommendCourses` 메소드에서 제공하는 임시(하드코딩된) 추천 과목 목록을 표시합니다.
     *   **JPA `javax` to `jakarta` 마이그레이션**: Spring Boot 3.x 환경에 맞춰 `CourseMapping.java` 파일의 `javax.persistence` import 문이 `jakarta.persistence`로 변경되었습니다. 이는 빌드 시 `cannot find symbol` 오류를 해결하기 위함입니다.
+    *   **`recommend.html` "처음으로" 버튼 변경**: `recommend.html`의 "처음으로" 버튼이 "이전으로"로 변경되었고, 클릭 시 `results` 페이지로 돌아가도록 수정되었습니다.
+    *   **`CourseController.java` `double` 타입 오류 해결**: `CourseController.java`의 `showResults` 메소드에서 `sc.getSemester().toString()` 오류가 `String.valueOf(sc.getSemester())`로 수정되었습니다.
+    *   **화면 표시 과목명 통일**: 분석 결과 페이지(`results.html`)와 다음 학기 구성 페이지(`recommend.html`)에서 과목 코드를 제외하고 과목 이름만 표시되도록 수정되었습니다.

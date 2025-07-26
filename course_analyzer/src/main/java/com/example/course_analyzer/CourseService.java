@@ -169,7 +169,7 @@ public class CourseService {
                 SemesterCourse sc = new SemesterCourse();
                 sc.setUser(user);
                 sc.setSemester(semesterNumber); // Use the extracted double
-                sc.setCourseName(course.getCourseCode());
+                sc.setCourseCode(course.getCourseCode()); // Use courseCode
                 sc.setGrade(course.getRemark());
                 semesterCourseRepository.save(sc);
             });
@@ -182,16 +182,16 @@ public class CourseService {
         Map<String, List<Course>> recommendedCourses = new LinkedHashMap<>();
 
         List<Course> priority1 = new ArrayList<>();
-        priority1.add(new Course("", "계산수학", "", ""));
-        priority1.add(new Course("", "푸리에", "", ""));
-        priority1.add(new Course("", "알바트로스세미나", "", ""));
+        priority1.add(new Course("", "", "계산수학", "")); // Use courseName
+        priority1.add(new Course("", "", "푸리에", "")); // Use courseName
+        priority1.add(new Course("", "", "알바트로스세미나", "")); // Use courseName
 
         List<Course> priority2 = new ArrayList<>();
-        priority2.add(new Course("", "선형대수학", "", "여름학기 수강"));
+        priority2.add(new Course("", "", "선형대수학", "여름학기 수강")); // Use courseName
 
         List<Course> priority3 = new ArrayList<>();
-        priority3.add(new Course("", "영어글로벌의사소통I", "", ""));
-        priority3.add(new Course("", "자연계글쓰기", "", ""));
+        priority3.add(new Course("", "", "영어글로벌의사소통I", "")); // Use courseName
+        priority3.add(new Course("", "", "자연계글쓰기", "")); // Use courseName
 
         recommendedCourses.put("1순위 추천과목 (7학기 빈도수 가장 높은 과목)", priority1);
         recommendedCourses.put("2순위 추천과목 (7학기 빈도수가 2위인 과목)", priority2);

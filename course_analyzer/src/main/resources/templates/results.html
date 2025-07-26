@@ -30,7 +30,7 @@
                 <ul>
                     <li th:each="course : ${entry.value}">
                         <span class="course-info">
-                            <span th:text="${course.courseCode}"></span> - <span th:text="${course.courseName}"></span>
+                            <span th:text="${course.courseName}"></span>
                         </span>
                         <span th:if="${not #strings.isEmpty(course.remark)}" class="remark" th:text="${course.remark}"></span>
                     </li>

@@ -108,3 +108,51 @@ This section summarizes the changes that have been recently implemented and conf
 4.  **Execution:**
     *   Used `write_file` to create `CourseMapping.java` with the correct `jakarta` imports.
     *   Used `write_file` to create `CourseMappingRepository.java`.
+
+### `recommend.html` Navigation Update
+
+1.  **Goal:** Change the "처음으로" button on the `recommend.html` page to "이전으로" and make it navigate back to the previous page (`results.html`) instead of the login page.
+
+2.  **Analysis:**
+    *   Identified `recommend.html` as the file to modify.
+    *   Noted that the current `th:href` was `@{/}` (login page).
+
+3.  **Plan:**
+    *   Change the button text from "처음으로" to "이전으로".
+    *   Update the `th:href` attribute to `@{/results(userId=${userId})}` to navigate back to the results page with the user ID.
+
+4.  **Execution:**
+    *   Used `write_file` to update `recommend.html`.
+
+### `CourseController.java` `double` Type Error Resolution
+
+1.  **Goal:** Resolve the `double cannot be dereferenced` compilation error in `CourseController.java`.
+
+2.  **Analysis:**
+    *   The error occurred at `sc.getSemester().toString()` because `sc.getSemester()` returns a primitive `double`, which cannot have methods called on it directly.
+
+3.  **Plan:**
+    *   Replace `sc.getSemester().toString()` with `String.valueOf(sc.getSemester())`.
+
+4.  **Execution:**
+    *   Used `write_file` to update `CourseController.java`.
+
+### Display Course Names Only on UI
+
+1.  **Goal:** Ensure that only course names (not codes) are displayed on the analysis results page (`results.html`) and the next semester recommendation page (`recommend.html`), while keeping course codes stored in the `SEMESTER_COURSE` table in the database.
+
+2.  **Analysis:**
+    *   Confirmed that `SemesterCourse.java` already uses `courseCode` for storage.
+    *   Confirmed that `CourseService.java`'s `saveCoursesToDatabase` correctly stores `courseCode`.
+    *   Confirmed that `CourseController.java`'s `showResults` already retrieves `courseName` from `CourseMappingRepository` using `courseCode`.
+    *   Confirmed that `recommend.html` already displays `courseName`.
+    *   Identified that `results.html` was still displaying both `courseCode` and `courseName`.
+    *   Identified that `CourseService.java`'s `recommendCourses` was creating `Course` objects with `courseCode` in the `courseCode` field and `courseName` in the `courseName` field, which is correct for the `Course` object structure, but the `results.html` was explicitly showing `courseCode`.
+
+3.  **Plan:**
+    *   Modify `results.html` to display only `th:text="${course.courseName}"`.
+    *   Modify `CourseService.java`'s `recommendCourses` to pass an empty string for `courseCode` when creating `Course` objects, as the `Course` constructor expects `semester`, `courseCode`, `courseName`, `remark`.
+
+4.  **Execution:**
+    *   Used `write_file` to update `results.html`.
+    *   Used `write_file` to update `CourseService.java`.

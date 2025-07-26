@@ -14,7 +14,7 @@ public class SemesterCourse {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private double semester;
-    private String courseName;
+    private String courseCode; // Changed from courseName to courseCode
     private String grade;
 
     @ManyToOne

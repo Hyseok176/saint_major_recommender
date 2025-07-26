@@ -128,11 +128,11 @@ public class CourseController {
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
                         LinkedHashMap::new, // 순서 유지를 위해 LinkedHashMap 사용
                         Collectors.mapping(sc -> {
-                            String courseCode = sc.getCourseName(); // SEMESTER_COURSE에는 과목 코드가 저장되어 있음
+                            String courseCode = sc.getCourseCode(); // SEMESTER_COURSE에는 과목 코드가 저장되어 있음
                             String actualCourseName = courseMappingRepository.findById(courseCode)
                                     .map(CourseMapping::getCourseName)
                                     .orElse(courseCode); // 매핑된 이름이 없으면 과목 코드를 그대로 사용
-                            return new Course(actualCourseName, sc.getGrade());
+                            return new Course(String.valueOf(sc.getSemester()), courseCode, actualCourseName, sc.getGrade());
                         }, Collectors.toList())));
 
         // 학기 순서 정렬
