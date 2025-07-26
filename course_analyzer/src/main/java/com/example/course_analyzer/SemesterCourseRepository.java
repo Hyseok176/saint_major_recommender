@@ -5,4 +5,5 @@ import java.util.List;
 
 public interface SemesterCourseRepository extends JpaRepository<SemesterCourse, Long> {
     List<SemesterCourse> findByUser(User user);
+    List<SemesterCourse> findByCourseCode(String courseCode);
 }

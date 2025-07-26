@@ -20,23 +20,26 @@
 </head>
 <body>
 <div class="container">
-    <h1>다음 학기 추천 과목</h1>
+    <h1 th:text="${title}"></h1>
     <p><strong>사용자 ID:</strong> <span th:text="${userId}"></span></p>
 
-    <div th:if="${not #maps.isEmpty(recommendedCourses)}">
-        <div th:each="entry : ${recommendedCourses}">
-            <h3 th:text="${entry.key}"></h3>
+    <div th:each="i : ${#numbers.sequence(T(java.lang.Math).floor(maxSemester) + 1, 8)}">
+        <h3 th:text="${i} + '학기'"></h3>
+        <div th:if="${recommendedCourses.containsKey(i + '학기')}">
             <ul>
-                <li th:each="course : ${entry.value}">
-                        <span class="course-info">
+                <li th:each="course : ${recommendedCourses.get(i + '학기')}">
+                    <span class="course-info">
                             <span th:text="${course.courseName}"></span>
+                            <span th:if="${course.percentage > 0}" class="remark" th:text="'(' + ${#numbers.formatDecimal(course.percentage, 0, 2)} + '%, 총 ' + ${course.totalStudents} + '명 중 ' + ${course.countInMostFrequentSemester} + '명 수강)'"></span>
                         </span>
                     <span th:if="${not #strings.isEmpty(course.remark)}" class="remark" th:text="${course.remark}"></span>
                 </li>
             </ul>
         </div>
+        <div th:if="${!recommendedCourses.containsKey(i + '학기')}">
+            <p>데이터가 부족합니다.</p>
+        </div>
     </div>
-    <p th:if="${#maps.isEmpty(recommendedCourses)}">추천 과목이 없습니다.</p>
 
     <a th:href="@{/results(userId=${userId})}" class="back-button">이전으로</a>
 </div>

@@ -96,7 +96,17 @@ public class CourseController {
         System.out.println("파일 업로드 시도: 사용자 ID = " + userId + ", 파일 이름 = " + file.getOriginalFilename()); // 콘솔 출력
         try {
             User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
-            List<Course> rawCourses = courseService.analyzeFile(file.getInputStream());
+            Map<String, Object> analysisResult = courseService.analyzeFile(file.getInputStream());
+            List<Course> rawCourses = (List<Course>) analysisResult.get("rawCourses");
+            Map<String, String> majorInfo = (Map<String, String>) analysisResult.get("majorInfo");
+
+            // 전공 정보 저장
+            if (majorInfo != null) {
+                user.setMajor1(majorInfo.get("major1"));
+                user.setMajor2(majorInfo.get("major2"));
+                user.setMajor3(majorInfo.get("major3"));
+                userRepository.save(user); // User 엔티티 업데이트
+            }
             Map<String, List<Course>> coursesBySemester = courseService.groupAndFormatCourses(rawCourses);
 
             // 기존 saveAnalyzedCourses 대신 데이터베이스에 저장하는 로직 호출
@@ -161,13 +171,24 @@ public class CourseController {
     public String recommend(@RequestParam("userId") String userId, Model model) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + userId));
-        
+
+        List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
+
+        double maxSemester = savedCourses.stream()
+                .mapToDouble(SemesterCourse::getSemester)
+                .max()
+                .orElse(0.0);
+
+        long nextSemester = (long) Math.floor(maxSemester) + 1;
+
         // 추천 로직 추가
         Map<String, List<Course>> recommendedCourses = courseService.recommendCourses(user);
 
         model.addAttribute("userId", userId);
+        model.addAttribute("title", "앞으로 들을과목 추천");
         model.addAttribute("recommendedCourses", recommendedCourses);
-        
+        model.addAttribute("maxSemester", maxSemester);
+
         return "recommend";
     }
 }

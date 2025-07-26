@@ -28,21 +28,40 @@ public class CourseService {
     private CourseMappingRepository courseMappingRepository; // CourseMappingRepository 주입
 
     // analyzeFile now returns a raw list of courses, including re-taken ones
-    public List<Course> analyzeFile(InputStream inputStream) throws IOException {
+    public Map<String, Object> analyzeFile(InputStream inputStream) throws IOException {
         List<Course> rawCourses = new ArrayList<>();
+        Map<String, String> majorInfo = new HashMap<>();
+
         // Pattern to match lines containing course information (e.g., 2021-1 COR1015 스마트인간과사회)
-        // Captures year, semester type, course code, and course name
         Pattern coursePattern = Pattern.compile("^(20\\d{2}-[12SW])\\t([A-Z]{3}\\d{4})\\t(.+?)\\t.*$");
+
+        // Pattern to match major information (e.g., "1전공수학2전공경제3전공물리학")
+        Pattern majorPattern = Pattern.compile("1전공(.+?)2전공(.+?)3전공(.+)");
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, Charset.forName("CP949")))) {
             String line;
+            boolean majorInfoParsed = false;
+
             while ((line = reader.readLine()) != null) {
-                // No more skipping sections, process all lines matching the pattern
-                Matcher matcher = coursePattern.matcher(line);
-                if (matcher.find()) {
-                    String rawSemester = matcher.group(1);
-                    String courseCode = matcher.group(2);
-                    String courseName = matcher.group(3);
+                // 전공 정보 파싱 (파일의 첫 부분에서 한 번만 시도)
+                if (!majorInfoParsed) {
+                    Matcher majorMatcher = majorPattern.matcher(line);
+                    if (majorMatcher.find()) {
+                        majorInfo.put("major1", majorMatcher.group(1));
+                        majorInfo.put("major2", majorMatcher.group(2));
+                        majorInfo.put("major3", majorMatcher.group(3));
+                        majorInfoParsed = true;
+                        // 전공 정보 라인은 과목 정보로 처리하지 않고 다음 라인으로 넘어감
+                        continue;
+                    }
+                }
+
+                // 과목 정보 파싱
+                Matcher courseMatcher = coursePattern.matcher(line);
+                if (courseMatcher.find()) {
+                    String rawSemester = courseMatcher.group(1);
+                    String courseCode = courseMatcher.group(2);
+                    String courseName = courseMatcher.group(3);
 
                     // 과목 코드와 과목 이름 매핑 저장
                     if (!courseMappingRepository.existsById(courseCode)) {
@@ -57,7 +76,11 @@ public class CourseService {
                 }
             }
         }
-        return rawCourses;
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("rawCourses", rawCourses);
+        result.put("majorInfo", majorInfo);
+        return result;
     }
 
     // New method to group and format courses by continuous semester
@@ -177,26 +200,70 @@ public class CourseService {
     }
 
     public Map<String, List<Course>> recommendCourses(User user) {
-        // This is a placeholder for the actual recommendation logic.
-        // It currently returns a hardcoded list of courses.
-        Map<String, List<Course>> recommendedCourses = new LinkedHashMap<>();
+        Map<String, List<Course>> recommendedCoursesBySemester = new LinkedHashMap<>();
 
-        List<Course> priority1 = new ArrayList<>();
-        priority1.add(new Course("", "", "계산수학", "")); // Use courseName
-        priority1.add(new Course("", "", "푸리에", "")); // Use courseName
-        priority1.add(new Course("", "", "알바트로스세미나", "")); // Use courseName
+        // 1. 모든 MAT 과목 조회
+        List<CourseMapping> allMatCourses = courseMappingRepository.findByCourseCodeStartingWith("MAT");
 
-        List<Course> priority2 = new ArrayList<>();
-        priority2.add(new Course("", "", "선형대수학", "여름학기 수강")); // Use courseName
+        // 2. 사용자가 이미 이수한 과목 코드 조회
+        List<String> userTakenCourseCodes = semesterCourseRepository.findByUser(user).stream()
+                .map(SemesterCourse::getCourseCode)
+                .collect(Collectors.toList());
 
-        List<Course> priority3 = new ArrayList<>();
-        priority3.add(new Course("", "", "영어글로벌의사소통I", "")); // Use courseName
-        priority3.add(new Course("", "", "자연계글쓰기", "")); // Use courseName
+        // 3. 미이수 MAT 과목 필터링
+        List<CourseMapping> unTakenMatCourses = allMatCourses.stream()
+                .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
+                .collect(Collectors.toList());
 
-        recommendedCourses.put("1순위 추천과목 (7학기 빈도수 가장 높은 과목)", priority1);
-        recommendedCourses.put("2순위 추천과목 (7학기 빈도수가 2위인 과목)", priority2);
-        recommendedCourses.put("3순위 추천과목 (6,8 학기에 들은 과목)", priority3);
+        // 4. 각 미이수 MAT 과목에 대해 최빈 이수 학기 계산 및 그룹화
+        for (CourseMapping matCourse : unTakenMatCourses) {
+            String courseCode = matCourse.getCourseCode();
+            String courseName = matCourse.getCourseName();
 
-        return recommendedCourses;
+            // 해당 과목의 모든 이수 기록 조회
+            List<SemesterCourse> allInstancesOfCourse = semesterCourseRepository.findByCourseCode(courseCode);
+
+            // 학기별 빈도수 계산
+            Map<Double, Long> semesterFrequency = allInstancesOfCourse.stream()
+                    .collect(Collectors.groupingBy(SemesterCourse::getSemester, Collectors.counting()));
+
+            if (!semesterFrequency.isEmpty()) {
+                // 최빈 학기 찾기
+                Map.Entry<Double, Long> mostFrequentEntry = semesterFrequency.entrySet().stream()
+                        .max(Map.Entry.comparingByValue())
+                        .get();
+                double mostFrequentSemester = mostFrequentEntry.getKey();
+                long countAtMostFrequentSemester = mostFrequentEntry.getValue();
+
+                // 전체 학생 수 (해당 과목을 수강한 모든 학생 수)
+                long totalStudentsForCourse = allInstancesOfCourse.stream()
+                        .map(SemesterCourse::getUser) // User 객체로 매핑
+                        .distinct() // 중복 사용자 제거
+                        .count();
+
+                double percentage = (totalStudentsForCourse > 0) ? (double) countAtMostFrequentSemester / totalStudentsForCourse * 100 : 0.0;
+
+                // 추천 과목 리스트에 추가
+                recommendedCoursesBySemester.computeIfAbsent(String.format("%d학기", (int) Math.floor(mostFrequentSemester)), k -> new ArrayList<>()).add(new Course("", courseCode, courseName, "", percentage, totalStudentsForCourse, countAtMostFrequentSemester));
+            }
+        }
+
+        // 학기 순서대로 정렬 (LinkedHashMap이므로 키 순서 유지)
+        return recommendedCoursesBySemester.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(Comparator.comparingDouble(s -> {
+                    // "X학기" 또는 "X.Y학기"에서 숫자 부분만 추출하여 double로 변환
+                    Pattern pattern = Pattern.compile("([\\d\\.]+)학기");
+                    Matcher matcher = pattern.matcher(s);
+                    if (matcher.find()) {
+                        return Double.parseDouble(matcher.group(1));
+                    }
+                    return 0.0; // 매칭되지 않으면 0.0으로 처리 (오류 방지)
+                })))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (e1, e2) -> e1, // Merge function, not relevant for sorted
+                        LinkedHashMap::new
+                ));
     }
 }

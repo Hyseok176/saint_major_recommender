@@ -64,11 +64,9 @@
     *   `CourseService.java`: `analyzeFile` 메서드에서 텍스트 파일 파싱 시, 새로운 과목 코드-이름 매핑이 발견되면 `COURSE_MAPPING` 테이블에 저장.
     *   `CourseController.java`: `showResults` 메서드에서 `SemesterCourse`에 저장된 과목 코드(`courseName` 필드)를 사용하여 `COURSE_MAPPING` 테이블에서 실제 과목 이름을 조회하고, 이를 `/results` 페이지에 표시.
 *   **최근 확정된 변경 사항**:
-    *   **"다시 분석하기" 버튼 동작 변경**: `results.html`의 "다시 분석하기" 버튼이 로그인 페이지 대신 파일 업로드 페이지(`upload-file.html`)로 이동하도록 변경되었습니다. 이 때 `userId`가 파라미터로 전달됩니다.
-    *   **파일 재업로드 시 수강 이력 업데이트 로직**: `CourseService.java`의 `saveCoursesToDatabase` 메소드가 수정되어, 파일 재업로드 시 기존 수강 이력과 비교하여 변경된 내용(새로운 과목 추가, 기존 과목 삭제 등)만 데이터베이스에 반영하도록 개선되었습니다.
-    *   **"다음학기 구성하기" 기능 추가**: `results.html`에 "다음학기 구성하기" 버튼이 추가되었습니다. 이 버튼은 `/recommend` 경로로 `userId`와 함께 요청을 보내며, `recommend.html` 페이지로 이동합니다.
-    *   **과목 추천 페이지 (`recommend.html`)**: `C:\banghak\next_sem.html`의 구조를 기반으로 한 새로운 Thymeleaf 템플릿 파일(`recommend.html`)이 생성되었습니다. 이 페이지는 `CourseService.recommendCourses` 메소드에서 제공하는 임시(하드코딩된) 추천 과목 목록을 표시합니다.
-    *   **JPA `javax` to `jakarta` 마이그레이션**: Spring Boot 3.x 환경에 맞춰 `CourseMapping.java` 파일의 `javax.persistence` import 문이 `jakarta.persistence`로 변경되었습니다. 이는 빌드 시 `cannot find symbol` 오류를 해결하기 위함입니다.
-    *   **`recommend.html` "처음으로" 버튼 변경**: `recommend.html`의 "처음으로" 버튼이 "이전으로"로 변경되었고, 클릭 시 `results` 페이지로 돌아가도록 수정되었습니다.
-    *   **`CourseController.java` `double` 타입 오류 해결**: `CourseController.java`의 `showResults` 메소드에서 `sc.getSemester().toString()` 오류가 `String.valueOf(sc.getSemester())`로 수정되었습니다.
-    *   **화면 표시 과목명 통일**: 분석 결과 페이지(`results.html`)와 다음 학기 구성 페이지(`recommend.html`)에서 과목 코드를 제외하고 과목 이름만 표시되도록 수정되었습니다.
+    *   **"다음학기 구성하기" 기능 개선**: `/recommend` 페이지로 이동하며, 사용자의 마지막 이수 학기를 기준으로 다음 학기 제목을 동적으로 표시합니다.
+    *   **과목 추천 로직 구현**: `CourseService`의 `recommendCourses` 메서드에 수학과 전공 과목(MAT로 시작) 추천 로직을 구현했습니다. 이 로직은 사용자가 아직 이수하지 않은 MAT 과목 중, 모든 학생들의 수강 기록을 분석하여 해당 과목이 가장 많이 이수된 학기를 기준으로 추천합니다. 또한, 각 과목별로 해당 학기에 수강한 학생의 비율(%)을 함께 표시합니다.
+    *   **추천 과목 필터링**: `/recommend` 페이지에서는 사용자가 현재 계획하고 있는 학기(예: 7학기)에 해당하는 과목만 추천하며, 이전 학기에 대한 추천은 표시하지 않습니다.
+    *   **데이터베이스 스키마 및 연동 변경**: `SemesterCourse` 엔티티의 `courseName` 필드를 `courseCode`로 변경하고, 파일 업로드 시 `courseCode`를 저장하도록 수정했습니다. `/results` 페이지에서는 `courseCode`를 기반으로 `CourseMapping`에서 실제 과목 이름을 조회하여 표시합니다.
+    *   **`Course` 엔티티 확장**: `Course` 클래스에 `percentage` 필드를 추가하여 추천 과목의 비율을 담을 수 있도록 했습니다.
+    *   **관련 Repository 메서드 추가 및 임포트 수정**: `SemesterCourseRepository`에 `findByCourseCode` 메서드를, `CourseMappingRepository`에 `findByCourseCodeStartingWith` 메서드를 추가하고, 필요한 임포트 구문을 수정하여 컴파일 오류를 해결했습니다.

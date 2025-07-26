@@ -16,4 +16,7 @@ public class User {
     
     private String password;
     private Long userOrder;
+    private String major1;
+    private String major2;
+    private String major3;
 }
