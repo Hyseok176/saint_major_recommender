@@ -1,44 +1,23 @@
-HELP.md
-.gradle
+# Ignore Gradle build directories
+.gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
-
-### IntelliJ IDEA ###
-.idea
+# Ignore IntelliJ IDEA files
+.idea/
 *.iws
 *.iml
 *.ipr
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-### VS Code ###
+# Ignore VS Code files
 .vscode/
 
-# H2 Database files
+# Ignore H2 Database files (if not in temp, otherwise temp will handle it)
 *.mv.db
 *.trace.db
 
-# Log files
+# Ignore log files
 error.txt
+
+# Do NOT ignore temp/ folder
+#!temp/
