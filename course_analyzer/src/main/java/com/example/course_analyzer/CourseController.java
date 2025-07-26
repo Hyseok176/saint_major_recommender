@@ -29,6 +29,9 @@ public class CourseController {
     @Autowired
     private SemesterCourseRepository semesterCourseRepository; // SemesterCourseRepository 주입
 
+    @Autowired
+    private CourseMappingRepository courseMappingRepository; // CourseMappingRepository 주입
+
     @GetMapping("/")
     public String index() {
         return "index";
@@ -117,14 +120,20 @@ public class CourseController {
         List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
 
         if (savedCourses.isEmpty()) {
-            System.out.println("저장된 데이터가 없어 / 페이지로 리디렉션합니다.");
-            return "redirect:/";
+            System.out.println("저장된 데이터가 없어 /upload-form 페이지로 리디렉션합니다.");
+            return "redirect:/upload-form?userId=" + userId;
         }
 
         Map<Double, List<Course>> coursesBySemester = savedCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
                         LinkedHashMap::new, // 순서 유지를 위해 LinkedHashMap 사용
-                        Collectors.mapping(sc -> new Course(sc.getCourseName(), sc.getGrade()), Collectors.toList())));
+                        Collectors.mapping(sc -> {
+                            String courseCode = sc.getCourseName(); // SEMESTER_COURSE에는 과목 코드가 저장되어 있음
+                            String actualCourseName = courseMappingRepository.findById(courseCode)
+                                    .map(CourseMapping::getCourseName)
+                                    .orElse(courseCode); // 매핑된 이름이 없으면 과목 코드를 그대로 사용
+                            return new Course(actualCourseName, sc.getGrade());
+                        }, Collectors.toList())));
 
         // 학기 순서 정렬
         Map<Double, List<Course>> sortedCoursesBySemester = coursesBySemester.entrySet().stream()
@@ -142,9 +151,23 @@ public class CourseController {
         return "results";
     }
 
-    @GetMapping("/upload-file")
-    public String uploadFilePage(@RequestParam("userId") String userId, Model model) {
+    @GetMapping("/upload-form")
+    public String showUploadForm(@RequestParam("userId") String userId, Model model) {
         model.addAttribute("userId", userId);
         return "upload-file";
+    }
+
+    @GetMapping("/recommend")
+    public String recommend(@RequestParam("userId") String userId, Model model) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + userId));
+        
+        // 추천 로직 추가
+        Map<String, List<Course>> recommendedCourses = courseService.recommendCourses(user);
+
+        model.addAttribute("userId", userId);
+        model.addAttribute("recommendedCourses", recommendedCourses);
+        
+        return "recommend";
     }
 }

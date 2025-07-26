@@ -25,7 +25,7 @@ public class CourseService {
     private SemesterCourseRepository semesterCourseRepository; // SemesterCourseRepository 주입
 
     @Autowired
-    private SubjectRepository subjectRepository; // SubjectRepository 주입
+    private CourseMappingRepository courseMappingRepository; // CourseMappingRepository 주입
 
     // analyzeFile now returns a raw list of courses, including re-taken ones
     public List<Course> analyzeFile(InputStream inputStream) throws IOException {
@@ -43,6 +43,15 @@ public class CourseService {
                     String rawSemester = matcher.group(1);
                     String courseCode = matcher.group(2);
                     String courseName = matcher.group(3);
+
+                    // 과목 코드와 과목 이름 매핑 저장
+                    if (!courseMappingRepository.existsById(courseCode)) {
+                        CourseMapping newMapping = new CourseMapping();
+                        newMapping.setCourseCode(courseCode);
+                        newMapping.setCourseName(courseName);
+                        courseMappingRepository.save(newMapping);
+                    }
+
                     // Remark will be set later in groupAndFormatCourses
                     rawCourses.add(new Course(rawSemester, courseCode, courseName, ""));
                 }
@@ -147,7 +156,7 @@ public class CourseService {
         coursesBySemester.forEach((semesterString, courses) -> {
             // Extract the double semester from the semesterString
             double semesterNumber;
-            Pattern pattern = Pattern.compile("^([\\d\\.]+)학기");
+            Pattern pattern = Pattern.compile("^^([\\d\\.]+)학기");
             Matcher matcher = pattern.matcher(semesterString);
             if (matcher.find()) {
                 semesterNumber = Double.parseDouble(matcher.group(1));
@@ -157,18 +166,37 @@ public class CourseService {
             }
 
             courses.forEach(course -> {
-                // Save subject information if it's new
-                if (!subjectRepository.existsById(course.getCourseCode())) {
-                    subjectRepository.save(new Subject(course.getCourseCode(), course.getCourseName()));
-                }
-
                 SemesterCourse sc = new SemesterCourse();
                 sc.setUser(user);
                 sc.setSemester(semesterNumber); // Use the extracted double
-                sc.setCourseName(course.getCourseName());
+                sc.setCourseName(course.getCourseCode());
                 sc.setGrade(course.getRemark());
                 semesterCourseRepository.save(sc);
             });
         });
+    }
+
+    public Map<String, List<Course>> recommendCourses(User user) {
+        // This is a placeholder for the actual recommendation logic.
+        // It currently returns a hardcoded list of courses.
+        Map<String, List<Course>> recommendedCourses = new LinkedHashMap<>();
+
+        List<Course> priority1 = new ArrayList<>();
+        priority1.add(new Course("", "계산수학", "", ""));
+        priority1.add(new Course("", "푸리에", "", ""));
+        priority1.add(new Course("", "알바트로스세미나", "", ""));
+
+        List<Course> priority2 = new ArrayList<>();
+        priority2.add(new Course("", "선형대수학", "", "여름학기 수강"));
+
+        List<Course> priority3 = new ArrayList<>();
+        priority3.add(new Course("", "영어글로벌의사소통I", "", ""));
+        priority3.add(new Course("", "자연계글쓰기", "", ""));
+
+        recommendedCourses.put("1순위 추천과목 (7학기 빈도수 가장 높은 과목)", priority1);
+        recommendedCourses.put("2순위 추천과목 (7학기 빈도수가 2위인 과목)", priority2);
+        recommendedCourses.put("3순위 추천과목 (6,8 학기에 들은 과목)", priority3);
+
+        return recommendedCourses;
     }
 }

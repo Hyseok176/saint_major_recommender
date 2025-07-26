@@ -14,8 +14,9 @@
         li { background-color: #e9ecef; margin-bottom: 8px; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
         .course-info { flex-grow: 1; }
         .remark { font-size: 0.8em; color: #666; margin-left: 10px; }
-        .back-button { display: block; width: 150px; margin: 30px auto 0; padding: 10px; text-align: center; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; }
-        .back-button:hover { background-color: #0056b3; }
+        .button-container { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
+        .action-button { display: block; width: 150px; padding: 10px; text-align: center; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+        .action-button:hover { background-color: #0056b3; }
     </style>
 </head>
 <body>
@@ -38,7 +39,10 @@
         </div>
         <p th:if="${#maps.isEmpty(coursesBySemester)}">분석된 과목이 없습니다.</p>
 
-        <a th:href="@{/upload-file(userId=${userId})}" class="back-button">다시 분석하기</a>
+        <div class="button-container">
+            <a th:href="@{/upload-form(userId=${userId})}" class="action-button">다시 분석하기</a>
+            <a th:href="@{/recommend(userId=${userId})}" class="action-button">다음학기 구성하기</a>
+        </div>
     </div>
 </body>
 </html>
