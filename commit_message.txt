@@ -1,0 +1,1 @@
+feat: Update CourseService and CourseController for logging and UI

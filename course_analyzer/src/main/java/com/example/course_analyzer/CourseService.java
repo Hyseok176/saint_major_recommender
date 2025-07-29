@@ -28,7 +28,7 @@ public class CourseService {
     private CourseMappingRepository courseMappingRepository; // CourseMappingRepository 주입
 
     // analyzeFile now returns a raw list of courses, including re-taken ones
-    public Map<String, Object> analyzeFile(InputStream inputStream) throws IOException {
+    public Map<String, Object> analyzeFile(InputStream inputStream, String userId, String ipAddress) throws IOException {
         List<Course> rawCourses = new ArrayList<>();
         Map<String, String> majorInfo = new HashMap<>();
 
@@ -69,6 +69,8 @@ public class CourseService {
                         newMapping.setCourseCode(courseCode);
                         newMapping.setCourseName(courseName);
                         courseMappingRepository.save(newMapping);
+                        String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
+                        System.out.println(String.format("NewCourse: %s, User:%s, IP:%s, CODE: %s", timestamp, userId, ipAddress, courseCode));
                     }
 
                     // Remark will be set later in groupAndFormatCourses

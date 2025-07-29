@@ -96,14 +96,17 @@ public class CourseController {
     @PostMapping("/upload")
     public String uploadFile(@RequestParam("file") MultipartFile file,
                              HttpSession session,
-                             Model model) {
+                             Model model,
+                             HttpServletRequest request) { // Added HttpServletRequest
         String userId = (String) session.getAttribute("userId");
         if (userId == null) {
             return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
         }
+        String ipAddress = request.getRemoteAddr(); // Get IP address
         try {
             User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
-            Map<String, Object> analysisResult = courseService.analyzeFile(file.getInputStream());
+            // Pass userId and ipAddress to analyzeFile
+            Map<String, Object> analysisResult = courseService.analyzeFile(file.getInputStream(), userId, ipAddress);
             List<Course> rawCourses = (List<Course>) analysisResult.get("rawCourses");
             Map<String, String> majorInfo = (Map<String, String>) analysisResult.get("majorInfo");
 
