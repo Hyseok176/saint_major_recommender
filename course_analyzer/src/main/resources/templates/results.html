@@ -22,11 +22,10 @@
 <body>
     <div class="container">
         <h1>수강기록</h1>
-        <p><strong>사용자 ID:</strong> <span th:text="${userId}"></span></p>
 
         <div th:if="${not #maps.isEmpty(coursesBySemester)}">
             <div th:each="entry : ${coursesBySemester}">
-                <h3 th:text="${entry.key}"></h3>
+                <h3 th:text="${entry.key} + '학기'"></h3>
                 <ul>
                     <li th:each="course : ${entry.value}">
                         <span class="course-info">
@@ -40,8 +39,8 @@
         <p th:if="${#maps.isEmpty(coursesBySemester)}">분석된 과목이 없습니다.</p>
 
         <div class="button-container">
-            <a th:href="@{/upload-form(userId=${userId})}" class="action-button">다시 분석하기</a>
-            <a th:href="@{/recommend(userId=${userId})}" class="action-button">다음학기 구성하기</a>
+            <a th:href="@{/upload-form}" class="action-button">다시 분석하기</a>
+            <a th:href="@{/recommend}" class="action-button">다음학기 구성하기</a>
         </div>
     </div>
 </body>

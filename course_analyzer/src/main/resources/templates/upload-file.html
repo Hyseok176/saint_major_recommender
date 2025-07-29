@@ -20,10 +20,8 @@
 <body>
     <div class="container">
         <h1>파일 업로드</h1>
-        <p>사용자 ID: <span th:text="${userId}"></span></p>
 
         <form th:action="@{/upload}" method="post" enctype="multipart/form-data">
-            <input type="hidden" name="userId" th:value="${userId}">
             <label for="file">수강신청 파일 (noname.txt):</label>
             <input type="file" id="file" name="file" accept=".txt" required>
             <div class="note">

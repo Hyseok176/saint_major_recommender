@@ -1,5 +1,7 @@
 package com.example.course_analyzer;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -7,16 +9,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Controller
 public class CourseController {
@@ -40,26 +41,27 @@ public class CourseController {
     @PostMapping("/login") // 로그인 처리
     public String login(@RequestParam("username") String username,
                         @RequestParam("password") String password,
-                        Model model,
-                        RedirectAttributes redirectAttributes) {
-        System.out.println("로그인 시도: 사용자 이름 = " + username); // 콘솔 출력
+                        HttpSession session,
+                        HttpServletRequest request,
+                        Model model) {
         User user = userRepository.findById(username).orElse(null);
         if (user != null && user.getPassword().equals(password)) { // 간단한 비밀번호 확인
-            System.out.println("로그인 성공: 사용자 ID = " + user.getId() + ", 사용자 이름 = " + username); // 콘솔 출력
-            redirectAttributes.addAttribute("userId", user.getId()); // userId 대신 user.getId() 사용
+            session.setAttribute("userId", user.getId()); // 세션에 userId 저장
+
+            // 로그 출력
+            String ip = request.getRemoteAddr();
+            String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            System.out.println(String.format("Login: %s, User: %s, IP: %s", now, user.getId(), ip));
+
             // 이전에 저장된 학기별 교과목 정보가 있는지 확인
             List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
             if (!savedCourses.isEmpty()) {
-                System.out.println("이전 분석 결과가 존재하여 /results 페이지로 리디렉션합니다."); // 콘솔 출력
                 return "redirect:/results"; // 있으면 바로 결과 페이지로 리디렉션
             } else {
-                model.addAttribute("userId", user.getId());
-                System.out.println("이전 분석 결과가 없어 /upload-file 페이지로 이동합니다."); // 콘솔 출력
-                return "upload-file"; // 없으면 파일 업로드 페이지로
+                return "redirect:/upload-form"; // 없으면 파일 업로드 페이지로
             }
         } else {
-            System.out.println("로그인 실패: 유효하지 않은 사용자 이름 또는 비밀번호입니다."); // 콘솔 출력
-            model.addAttribute("error", "유효하지 않은 사용자 이름 또는 비밀번호입니다.");
+            model.addAttribute("error", "Invalid username or password.");
             return "index"; // 로그인 실패 시 다시 로그인 페이지로
         }
     }
@@ -68,10 +70,8 @@ public class CourseController {
     public String register(@RequestParam("username") String username,
                            @RequestParam("password") String password,
                            Model model) {
-        System.out.println("회원가입 시도: 사용자 이름 = " + username + ", 비밀번호 = " + password); // 콘솔 출력
         if (userRepository.findById(username).isPresent()) {
-            System.out.println("회원가입 실패: 이미 존재하는 사용자 이름입니다."); // 콘솔 출력
-            model.addAttribute("error", "이미 존재하는 사용자 이름입니다.");
+            model.addAttribute("error", "Username already exists.");
             return "index";
         }
         User newUser = new User();
@@ -81,19 +81,19 @@ public class CourseController {
         Long maxOrder = userRepository.findMaxUserOrder();
         newUser.setUserOrder(maxOrder != null ? maxOrder + 1 : 1L);
         userRepository.save(newUser);
-        System.out.println("회원가입 성공: 사용자 ID = " + newUser.getId() + ", 사용자 이름 = " + username); // 콘솔 출력
-        model.addAttribute("message", "회원가입이 완료되었습니다. 로그인해주세요.");
+        model.addAttribute("message", "Registration successful. Please log in.");
         return "index";
     }
 
 
     @PostMapping("/upload")
-    public String uploadFile(
-            @RequestParam("userId") String userId, // userId를 String 타입으로 변경
-            @RequestParam("file") MultipartFile file,
-            Model model,
-            RedirectAttributes redirectAttributes) {
-        System.out.println("파일 업로드 시도: 사용자 ID = " + userId + ", 파일 이름 = " + file.getOriginalFilename()); // 콘솔 출력
+    public String uploadFile(@RequestParam("file") MultipartFile file,
+                             HttpSession session,
+                             Model model) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) {
+            return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
+        }
         try {
             User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
             Map<String, Object> analysisResult = courseService.analyzeFile(file.getInputStream());
@@ -111,27 +111,25 @@ public class CourseController {
 
             // 기존 saveAnalyzedCourses 대신 데이터베이스에 저장하는 로직 호출
             courseService.saveCoursesToDatabase(user, coursesBySemester);
-            System.out.println("파일 분석 및 데이터베이스 저장 완료."); // 콘솔 출력
 
-            redirectAttributes.addAttribute("userId", userId);
             return "redirect:/results";
         } catch (IOException e) {
-            System.err.println("파일 처리 중 오류 발생: " + e.getMessage()); // 콘솔 에러 출력
-            model.addAttribute("userId", userId);
-            model.addAttribute("error", "파일 처리 중 오류가 발생했습니다: " + e.getMessage());
+            model.addAttribute("error", "Error processing file: " + e.getMessage());
             return "upload-file"; // Stay on upload page with error
         }
     }
 
     @GetMapping("/results")
-    public String showResults(@RequestParam("userId") String userId, Model model) {
-        System.out.println("/results 페이지 접근: 사용자 ID = " + userId);
+    public String showResults(HttpSession session, Model model) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) {
+            return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
+        }
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
         List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
 
         if (savedCourses.isEmpty()) {
-            System.out.println("저장된 데이터가 없어 /upload-form 페이지로 리디렉션합니다.");
-            return "redirect:/upload-form?userId=" + userId;
+            return "redirect:/upload-form";
         }
 
         Map<Double, List<Course>> coursesBySemester = savedCourses.stream()
@@ -155,20 +153,25 @@ public class CourseController {
                         LinkedHashMap::new
                 ));
 
-        model.addAttribute("userId", userId);
         model.addAttribute("coursesBySemester", sortedCoursesBySemester);
-        System.out.println("/results 페이지에 데이터 전달 완료.");
         return "results";
     }
 
     @GetMapping("/upload-form")
-    public String showUploadForm(@RequestParam("userId") String userId, Model model) {
-        model.addAttribute("userId", userId);
+    public String showUploadForm(HttpSession session, Model model) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) {
+            return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
+        }
         return "upload-file";
     }
 
     @GetMapping("/recommend")
-    public String recommend(@RequestParam("userId") String userId, Model model) {
+    public String recommend(HttpSession session, Model model) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) {
+            return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + userId));
 
@@ -179,13 +182,10 @@ public class CourseController {
                 .max()
                 .orElse(0.0);
 
-        long nextSemester = (long) Math.floor(maxSemester) + 1;
-
         // 추천 로직 추가
         Map<String, List<Course>> recommendedCourses = courseService.recommendCourses(user);
 
-        model.addAttribute("userId", userId);
-        model.addAttribute("title", "앞으로 들을과목 추천");
+        model.addAttribute("title", "Recommended Courses for Next Semester");
         model.addAttribute("recommendedCourses", recommendedCourses);
         model.addAttribute("maxSemester", maxSemester);
 
