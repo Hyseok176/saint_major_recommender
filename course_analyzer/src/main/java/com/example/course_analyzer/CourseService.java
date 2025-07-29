@@ -32,8 +32,8 @@ public class CourseService {
         List<Course> rawCourses = new ArrayList<>();
         Map<String, String> majorInfo = new HashMap<>();
 
-        // Pattern to match lines containing course information (e.g., 2021-1 COR1015 스마트인간과사회)
-        Pattern coursePattern = Pattern.compile("^(20\\d{2}-[12SW])\\t([A-Z]{3}\\d{4})\\t(.+?)\\t.*$");
+        // Pattern to match lines containing course information, allowing for various formats
+        Pattern coursePattern = Pattern.compile("^(20\\d{2}-[12SW])\\s*([A-Z]{3,4}\\d{3,4})\\s*(.+?)\\s*([0-9]+\\.[0-9])\\s*([A-F][+-]?|S|U|P|F|W)?.*$");
 
         // Pattern to match major information (e.g., "1전공수학2전공경제3전공물리학")
         Pattern majorPattern = Pattern.compile("1전공(.+?)2전공(.+?)3전공(.+)");
@@ -51,19 +51,16 @@ public class CourseService {
                         majorInfo.put("major2", majorMatcher.group(2));
                         majorInfo.put("major3", majorMatcher.group(3));
                         majorInfoParsed = true;
-                        // 전공 정보 라인은 과목 정보로 처리하지 않고 다음 라인으로 넘어감
                         continue;
                     }
                 }
 
-                // 과목 정보 파싱
                 Matcher courseMatcher = coursePattern.matcher(line);
                 if (courseMatcher.find()) {
                     String rawSemester = courseMatcher.group(1);
                     String courseCode = courseMatcher.group(2);
                     String courseName = courseMatcher.group(3).trim();
 
-                    // 과목 코드와 과목 이름 매핑 저장
                     if (!courseMappingRepository.existsById(courseCode)) {
                         CourseMapping newMapping = new CourseMapping();
                         newMapping.setCourseCode(courseCode);
@@ -73,7 +70,6 @@ public class CourseService {
                         System.out.println(String.format("NewCourse: %s, User:%s, IP:%s, CODE: %s", timestamp, userId, ipAddress, courseCode));
                     }
 
-                    // Remark will be set later in groupAndFormatCourses
                     rawCourses.add(new Course(rawSemester, courseCode, courseName, ""));
                 }
             }
