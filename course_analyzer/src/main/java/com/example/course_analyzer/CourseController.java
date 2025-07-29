@@ -69,6 +69,7 @@ public class CourseController {
     @PostMapping("/register") // 회원가입 처리 (간단한 예시)
     public String register(@RequestParam("username") String username,
                            @RequestParam("password") String password,
+                           HttpServletRequest request,
                            Model model) {
         if (userRepository.findById(username).isPresent()) {
             model.addAttribute("error", "Username already exists.");
@@ -81,7 +82,13 @@ public class CourseController {
         Long maxOrder = userRepository.findMaxUserOrder();
         newUser.setUserOrder(maxOrder != null ? maxOrder + 1 : 1L);
         userRepository.save(newUser);
-        model.addAttribute("message", "Registration successful. Please log in.");
+
+        // 로그 출력
+        String ip = request.getRemoteAddr();
+        String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        System.out.println(String.format("Register: %s, User: %s, IP: %s", now, newUser.getId(), ip));
+
+        model.addAttribute("message", "회원가입이 완료되었습니다.");
         return "index";
     }
 
@@ -185,10 +192,16 @@ public class CourseController {
         // 추천 로직 추가
         Map<String, List<Course>> recommendedCourses = courseService.recommendCourses(user);
 
-        model.addAttribute("title", "Recommended Courses for Next Semester");
+        model.addAttribute("title", "과목 추천");
         model.addAttribute("recommendedCourses", recommendedCourses);
         model.addAttribute("maxSemester", maxSemester);
 
         return "recommend";
+    }
+
+    @GetMapping("/logout")
+    public String logout(HttpSession session) {
+        session.invalidate();
+        return "redirect:/";
     }
 }
