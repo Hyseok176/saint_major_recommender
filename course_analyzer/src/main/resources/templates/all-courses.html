@@ -25,10 +25,17 @@
     <a href="/logout" class="logout-button">Logout</a>
     <div class="container">
         <img src="/images/logo.jpg" alt="Logo" class="logo">
-        <h1 th:text="${showMajorCourses} ? '전공 과목' : '전체 과목'"></h1>
-        <button id="toggle-major-courses" class="course-button" style="width: auto; margin-bottom: 20px;">
-            <span th:text="${showMajorCourses} ? '전체 과목 보기' : '전공 과목만 보기'"></span>
-        </button>
+        <h1 th:text="${selectedMajor.equals('All')} ? '전체 과목' : ${selectedMajor} + ' 과목'"></h1>
+        <div class="filter-container" style="margin-bottom: 20px;">
+            <label for="major-select" style="margin-right: 10px;">전공 선택:</label>
+            <select id="major-select" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                <option value="All" th:selected="${selectedMajor.equals('All')}">전체</option>
+                <option th:each="major : ${userMajors}"
+                        th:value="${major}"
+                        th:text="${major}"
+                        th:selected="${major.equals(selectedMajor)}"></option>
+            </select>
+        </div>
         <input type="text" id="search-input" placeholder="과목명으로 검색...">
         <div id="course-list">
             <div th:each="course, iterStat : ${courses}" class="course-item">
@@ -129,10 +136,10 @@
             }
         });
 
-        const toggleMajorCoursesButton = document.getElementById('toggle-major-courses');
-        toggleMajorCoursesButton.addEventListener('click', () => {
-            const currentShowMajorCourses = [[${showMajorCourses}]];
-            window.location.href = `/all-courses?showMajorCourses=${!currentShowMajorCourses}`;
+        const majorSelect = document.getElementById('major-select');
+        majorSelect.addEventListener('change', () => {
+            const selectedMajor = majorSelect.value;
+            window.location.href = `/all-courses?major=${selectedMajor}`;
         });
     </script>
 </body>

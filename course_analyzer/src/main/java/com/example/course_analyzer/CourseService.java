@@ -273,6 +273,10 @@ public class CourseService {
                 .collect(Collectors.toList());
     }
 
+    public List<CourseMapping> getCoursesByMajor(String majorPrefix) {
+        return courseMappingRepository.findByCourseCodeStartingWith(majorPrefix);
+    }
+
     public Map<String, List<Course>> recommendCourses(User user) {
         Map<String, List<Course>> recommendedCoursesBySemester = new LinkedHashMap<>();
 

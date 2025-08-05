@@ -228,42 +228,43 @@ public class CourseController {
     }
 
     @GetMapping("/all-courses")
-    public String showAllCourses(@RequestParam(value = "showMajorCourses", defaultValue = "true") boolean showMajorCourses,
+    public String showAllCourses(@RequestParam(value = "major", required = false) String major,
                                  HttpSession session, Model model, RedirectAttributes redirectAttributes) {
         String userId = (String) session.getAttribute("userId");
         if (userId == null) {
             redirectAttributes.addFlashAttribute("error", "로그인이 필요합니다.");
-            return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
+            return "redirect:/";
         }
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
 
-        List<String> majorCoursePrefixes = new java.util.ArrayList<>();
-        if (user.getMajor1() != null && !user.getMajor1().equals("미선택")) {
-            majorCoursePrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
+        // Get user's majors for the dropdown, filtering out empty or "미선택" values
+        List<String> userMajors = new java.util.ArrayList<>();
+        if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
+            userMajors.add(user.getMajor1());
         }
-        if (user.getMajor2() != null && !user.getMajor2().equals("미선택")) {
-            majorCoursePrefixes.add(getCoursePrefixForMajor(user.getMajor2()));
+        if (user.getMajor2() != null && !user.getMajor2().isEmpty() && !user.getMajor2().equals("미선택")) {
+            userMajors.add(user.getMajor2());
         }
-        if (user.getMajor3() != null && !user.getMajor3().equals("미선택")) {
-            majorCoursePrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
+        if (user.getMajor3() != null && !user.getMajor3().isEmpty() && !user.getMajor3().equals("미선택")) {
+            userMajors.add(user.getMajor3());
         }
+        model.addAttribute("userMajors", userMajors);
 
         List<CourseMapping> courses;
-        if (showMajorCourses) { // User explicitly wants to see major courses
-            if (!majorCoursePrefixes.isEmpty()) {
-                courses = courseService.getFilteredCoursesByMajor(majorCoursePrefixes);
-            } else {
-                // User wants major courses, but no major prefixes are found.
-                // Show an empty list instead of all courses.
-                courses = new java.util.ArrayList<>();
-                model.addAttribute("message", "선택된 전공 과목이 없습니다."); // Optional: add a message
-            }
-        } else { // User wants to see all courses
+        String selectedMajor = "All"; // Default
+
+        if (major != null && !major.isEmpty() && !major.equals("All")) {
+            // Filter by the selected major
+            String majorPrefix = getCoursePrefixForMajor(major);
+            courses = courseService.getCoursesByMajor(majorPrefix);
+            selectedMajor = major;
+        } else {
+            // Show all courses by default or when "All" is selected
             courses = courseService.getAllCourses();
         }
 
         model.addAttribute("courses", courses);
-        model.addAttribute("showMajorCourses", showMajorCourses); // Add to model for view to use
+        model.addAttribute("selectedMajor", selectedMajor);
         return "all-courses";
     }
 
