@@ -169,6 +169,53 @@ public class CourseService {
         return coursesByFormattedSemester;
     }
 
+    public List<CourseMapping> getAllCourses() {
+        return courseMappingRepository.findAllExcludingCodes();
+    }
+
+    public Map<String, Object> getCourseStats(String subjectCode) {
+        List<SemesterCourse> courses = semesterCourseRepository.findByCourseCode(subjectCode);
+        Map<Double, Long> semesterCounts = courses.stream()
+                .collect(Collectors.groupingBy(SemesterCourse::getSemester, Collectors.counting()));
+
+        // Initialize map with all regular semesters from 1 to 8
+        Map<Double, Long> allSemesters = new LinkedHashMap<>();
+        for (int i = 1; i <= 8; i++) {
+            allSemesters.put((double) i, 0L);
+        }
+
+        // Populate with actual counts and add seasonal semesters if they exist
+        semesterCounts.forEach((semester, count) -> {
+            if (semester % 1 != 0) { // Seasonal semester
+                allSemesters.put(semester, count);
+            } else { // Regular semester
+                allSemesters.put(semester, count);
+            }
+        });
+
+        // Sort by semester
+        Map<Double, Long> sortedSemesterCounts = new LinkedHashMap<>();
+        allSemesters.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEachOrdered(x -> sortedSemesterCounts.put(x.getKey(), x.getValue()));
+
+        List<String> labels = sortedSemesterCounts.keySet().stream()
+                .map(semester -> {
+                    if (semester % 1 == 0) {
+                        return String.format("%.0f학기", semester);
+                    } else {
+                        return String.format("%.1f학기", semester);
+                    }
+                })
+                .collect(Collectors.toList());
+        List<Long> values = new ArrayList<>(sortedSemesterCounts.values());
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("labels", labels);
+        stats.put("values", values);
+        return stats;
+    }
+
     @Transactional // 트랜잭션으로 묶어 데이터 일관성 유지
     public void saveCoursesToDatabase(User user, Map<String, List<Course>> coursesBySemester) {
         // 기존에 저장된 해당 유저의 학기별 교과목 정보 삭제 (새로운 파일 업로드 시 덮어쓰기)

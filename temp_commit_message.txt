@@ -1,0 +1,6 @@
+feat: Add console logging for login and new course mappings
+
+- Implemented console logging for user login attempts in CourseController, including timestamp, user ID, and IP address.
+- Modified CourseController to pass user ID and IP address to CourseService during file uploads.
+- Updated CourseService to log new course mappings to the console with timestamp, user ID, IP address, and course code.
+- Removed redundant javax.servlet.http imports in CourseController to resolve compilation errors.

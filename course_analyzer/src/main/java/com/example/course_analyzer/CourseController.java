@@ -10,6 +10,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -97,9 +104,11 @@ public class CourseController {
     public String uploadFile(@RequestParam("file") MultipartFile file,
                              HttpSession session,
                              Model model,
-                             HttpServletRequest request) { // Added HttpServletRequest
+                             HttpServletRequest request, // Added HttpServletRequest
+                             RedirectAttributes redirectAttributes) {
         String userId = (String) session.getAttribute("userId");
         if (userId == null) {
+            redirectAttributes.addFlashAttribute("error", "로그인이 필요합니다.");
             return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
         }
         String ipAddress = request.getRemoteAddr(); // Get IP address
@@ -130,9 +139,10 @@ public class CourseController {
     }
 
     @GetMapping("/results")
-    public String showResults(HttpSession session, Model model) {
+    public String showResults(HttpSession session, Model model, RedirectAttributes redirectAttributes) {
         String userId = (String) session.getAttribute("userId");
         if (userId == null) {
+            redirectAttributes.addFlashAttribute("error", "로그인이 필요합니다.");
             return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
         }
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
@@ -168,18 +178,20 @@ public class CourseController {
     }
 
     @GetMapping("/upload-form")
-    public String showUploadForm(HttpSession session, Model model) {
+    public String showUploadForm(HttpSession session, Model model, RedirectAttributes redirectAttributes) {
         String userId = (String) session.getAttribute("userId");
         if (userId == null) {
+            redirectAttributes.addFlashAttribute("error", "로그인이 필요합니다.");
             return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
         }
         return "upload-file";
     }
 
     @GetMapping("/recommend")
-    public String recommend(HttpSession session, Model model) {
+    public String recommend(HttpSession session, Model model, RedirectAttributes redirectAttributes) {
         String userId = (String) session.getAttribute("userId");
         if (userId == null) {
+            redirectAttributes.addFlashAttribute("error", "로그인이 필요합니다.");
             return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
         }
         User user = userRepository.findById(userId)
@@ -206,5 +218,29 @@ public class CourseController {
     public String logout(HttpSession session) {
         session.invalidate();
         return "redirect:/";
+    }
+
+    @GetMapping("/all-courses")
+    public String showAllCourses(HttpSession session, Model model, RedirectAttributes redirectAttributes) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) {
+            redirectAttributes.addFlashAttribute("error", "로그인이 필요합니다.");
+            return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
+        }
+        List<CourseMapping> allCourses = courseService.getAllCourses();
+        model.addAttribute("courses", allCourses);
+        return "all-courses";
+    }
+
+    @GetMapping("/api/course-stats/{subjectCode}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getCourseStats(@PathVariable String subjectCode) {
+        try {
+            Map<String, Object> stats = courseService.getCourseStats(subjectCode);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            System.err.println("Error fetching course stats for " + subjectCode + ": " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 }
