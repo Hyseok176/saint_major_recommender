@@ -29,6 +29,60 @@
         <form th:action="@{/upload}" method="post" enctype="multipart/form-data">
             <label for="file">수강신청 파일 (noname.txt):</label>
             <input type="file" id="file" name="file" accept=".txt" required>
+
+            <div class="major-selection" style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <div class="major-group" style="flex: 1; margin-right: 10px;">
+                    <label for="major1-select">1전공:</label>
+                    <select id="major1-select" name="major1" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">미선택</option>
+                        <option value="수학">수학</option>
+                        <option value="물리학">물리학</option>
+                        <option value="화학">화학</option>
+                        <option value="생명과학">생명과학</option>
+                        <option value="전자공학">전자공학</option>
+                        <option value="컴퓨터공학">컴퓨터공학</option>
+                        <option value="화공생명공학">화공생명공학</option>
+                        <option value="기계공학">기계공학</option>
+                        <option value="경제학">경제학</option>
+                        <option value="경영학">경영학</option>
+                    </select>
+                </div>
+
+                <div class="major-group" style="flex: 1; margin-right: 10px;">
+                    <label for="major2-select">2전공:</label>
+                    <select id="major2-select" name="major2" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">미선택</option>
+                        <option value="수학">수학</option>
+                        <option value="물리학">물리학</option>
+                        <option value="화학">화학</option>
+                        <option value="생명과학">생명과학</option>
+                        <option value="전자공학">전자공학</option>
+                        <option value="컴퓨터공학">컴퓨터공학</option>
+                        <option value="화공생명공학">화공생명공학</option>
+                        <option value="기계공학">기계공학</option>
+                        <option value="경제학">경제학</option>
+                        <option value="경영학">경영학</option>
+                    </select>
+                </div>
+
+                <div class="major-group" style="flex: 1;">
+                    <label for="major3-select">3전공:</label>
+                    <select id="major3-select" name="major3" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">미선택</option>
+                        <option value="수학">수학</option>
+                        <option value="물리학">물리학</option>
+                        <option value="화학">화학</option>
+                        <option value="생명과학">생명과학</option>
+                        <option value="전자공학">전자공학</option>
+                        <option value="컴퓨터공학">컴퓨터공학</option>
+                        <option value="화공생명공학">화공생명공학</option>
+                        <option value="기계공학">기계공학</option>
+                        <option value="경제학">경제학</option>
+                        <option value="경영학">경영학</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="note">
                 <strong>참고:</strong> 업로드할 파일은 `noname.txt` 형식으로 작성된 텍스트 파일이어야 합니다.
             </div>

@@ -102,6 +102,9 @@ public class CourseController {
 
     @PostMapping("/upload")
     public String uploadFile(@RequestParam("file") MultipartFile file,
+                             @RequestParam("major1") String major1,
+                             @RequestParam("major2") String major2,
+                             @RequestParam("major3") String major3,
                              HttpSession session,
                              Model model,
                              HttpServletRequest request, // Added HttpServletRequest
@@ -114,18 +117,22 @@ public class CourseController {
         String ipAddress = request.getRemoteAddr(); // Get IP address
         try {
             User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
+            user.setMajor1(major1); 
+            user.setMajor2(major2);
+            user.setMajor3(major3);
+            userRepository.save(user); // Save the updated user
             // Pass userId and ipAddress to analyzeFile
             Map<String, Object> analysisResult = courseService.analyzeFile(file.getInputStream(), userId, ipAddress);
             List<Course> rawCourses = (List<Course>) analysisResult.get("rawCourses");
-            Map<String, String> majorInfo = (Map<String, String>) analysisResult.get("majorInfo");
+            // Map<String, String> majorInfo = (Map<String, String>) analysisResult.get("majorInfo"); // 파일에서 전공 파싱 로직 제거
 
-            // 전공 정보 저장
-            if (majorInfo != null) {
-                user.setMajor1(majorInfo.get("major1"));
-                user.setMajor2(majorInfo.get("major2"));
-                user.setMajor3(majorInfo.get("major3"));
-                userRepository.save(user); // User 엔티티 업데이트
-            }
+            // 전공 정보 저장 (기존 로직 유지, majorInfo가 파일에서 파싱된 경우)
+            // if (majorInfo != null) {
+            //     user.setMajor1(majorInfo.get("major1"));
+            //     user.setMajor2(majorInfo.get("major2"));
+            //     user.setMajor3(majorInfo.get("major3"));
+            //     userRepository.save(user); // User 엔티티 업데이트
+            // }
             Map<String, List<Course>> coursesBySemester = courseService.groupAndFormatCourses(rawCourses);
 
             // 기존 saveAnalyzedCourses 대신 데이터베이스에 저장하는 로직 호출
