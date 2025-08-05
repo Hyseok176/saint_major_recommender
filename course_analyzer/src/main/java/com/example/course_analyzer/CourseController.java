@@ -228,15 +228,61 @@ public class CourseController {
     }
 
     @GetMapping("/all-courses")
-    public String showAllCourses(HttpSession session, Model model, RedirectAttributes redirectAttributes) {
+    public String showAllCourses(@RequestParam(value = "showMajorCourses", defaultValue = "true") boolean showMajorCourses,
+                                 HttpSession session, Model model, RedirectAttributes redirectAttributes) {
         String userId = (String) session.getAttribute("userId");
         if (userId == null) {
             redirectAttributes.addFlashAttribute("error", "로그인이 필요합니다.");
             return "redirect:/"; // 로그인되지 않은 경우 로그인 페이지로
         }
-        List<CourseMapping> allCourses = courseService.getAllCourses();
-        model.addAttribute("courses", allCourses);
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
+
+        List<String> majorCoursePrefixes = new java.util.ArrayList<>();
+        if (user.getMajor1() != null && !user.getMajor1().equals("미선택")) {
+            majorCoursePrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
+        }
+        if (user.getMajor2() != null && !user.getMajor2().equals("미선택")) {
+            majorCoursePrefixes.add(getCoursePrefixForMajor(user.getMajor2()));
+        }
+        if (user.getMajor3() != null && !user.getMajor3().equals("미선택")) {
+            majorCoursePrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
+        }
+
+        List<CourseMapping> courses;
+        if (showMajorCourses) { // User explicitly wants to see major courses
+            if (!majorCoursePrefixes.isEmpty()) {
+                courses = courseService.getFilteredCoursesByMajor(majorCoursePrefixes);
+            } else {
+                // User wants major courses, but no major prefixes are found.
+                // Show an empty list instead of all courses.
+                courses = new java.util.ArrayList<>();
+                model.addAttribute("message", "선택된 전공 과목이 없습니다."); // Optional: add a message
+            }
+        } else { // User wants to see all courses
+            courses = courseService.getAllCourses();
+        }
+
+        model.addAttribute("courses", courses);
+        model.addAttribute("showMajorCourses", showMajorCourses); // Add to model for view to use
         return "all-courses";
+    }
+
+    private String getCoursePrefixForMajor(String major) {
+        switch (major) {
+            case "수학": return "MAT";
+            case "물리학": return "PHY";
+            case "화학": return "CHM";
+            case "생명과학": return "BIO";
+            case "전자공학": return "EEE";
+            case "기계공학": return "MEE";
+            case "컴퓨터공학": return "CSE";
+            case "화공생명공학": return "CBE";
+            case "시스템반도체공학": return "SSE";
+            case "인공지능학과": return "AIE";
+            case "경제학": return "ECO";
+            case "경영학": return "MGT";
+            default: return ""; // Should not happen if "미선택" is handled
+        }
     }
 
     @GetMapping("/api/course-stats/{subjectCode}")

@@ -263,71 +263,111 @@ public class CourseService {
         });
     }
 
+    public List<CourseMapping> getFilteredCoursesByMajor(List<String> majorPrefixes) {
+        List<CourseMapping> filteredCourses = new ArrayList<>();
+        for (String prefix : majorPrefixes) {
+            filteredCourses.addAll(courseMappingRepository.findByCourseCodeStartingWith(prefix));
+        }
+        return filteredCourses.stream()
+                .distinct() // Remove duplicates if a course matches multiple major prefixes
+                .collect(Collectors.toList());
+    }
+
     public Map<String, List<Course>> recommendCourses(User user) {
         Map<String, List<Course>> recommendedCoursesBySemester = new LinkedHashMap<>();
 
-        // 1. 모든 MAT 과목 조회
-        List<CourseMapping> allMatCourses = courseMappingRepository.findByCourseCodeStartingWith("MAT");
+        // Get major prefixes for the user
+        List<String> userMajorPrefixes = new ArrayList<>();
+        if (user.getMajor1() != null && !user.getMajor1().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
+        }
+        if (user.getMajor2() != null && !user.getMajor2().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor2()));
+        }
+        if (user.getMajor3() != null && !user.getMajor3().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
+        }
 
-        // 2. 사용자가 이미 이수한 과목 코드 조회
+        if (userMajorPrefixes.isEmpty()) {
+            return recommendedCoursesBySemester; // No major selected, return empty recommendations
+        }
+
+        // 1. Get all courses for the user's majors
+        List<CourseMapping> allMajorCourses = new ArrayList<>();
+        for (String prefix : userMajorPrefixes) {
+            allMajorCourses.addAll(courseMappingRepository.findByCourseCodeStartingWith(prefix));
+        }
+
+        // 2. Get user's taken courses
         List<String> userTakenCourseCodes = semesterCourseRepository.findByUser(user).stream()
                 .map(SemesterCourse::getCourseCode)
                 .collect(Collectors.toList());
 
-        // 3. 미이수 MAT 과목 필터링
-        List<CourseMapping> unTakenMatCourses = allMatCourses.stream()
+        // 3. Filter out courses already taken by the user
+        List<CourseMapping> unTakenMajorCourses = allMajorCourses.stream()
                 .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
                 .collect(Collectors.toList());
 
-        // 4. 각 미이수 MAT 과목에 대해 최빈 이수 학기 계산 및 그룹화
-        for (CourseMapping matCourse : unTakenMatCourses) {
-            String courseCode = matCourse.getCourseCode();
-            String courseName = matCourse.getCourseName();
+        // 4. Calculate and group by most frequent semester for each untaken major course
+        for (CourseMapping majorCourse : unTakenMajorCourses) {
+            String courseCode = majorCourse.getCourseCode();
+            String courseName = majorCourse.getCourseName();
 
-            // 해당 과목의 모든 이수 기록 조회
             List<SemesterCourse> allInstancesOfCourse = semesterCourseRepository.findByCourseCode(courseCode);
 
-            // 학기별 빈도수 계산
             Map<Double, Long> semesterFrequency = allInstancesOfCourse.stream()
                     .collect(Collectors.groupingBy(SemesterCourse::getSemester, Collectors.counting()));
 
             if (!semesterFrequency.isEmpty()) {
-                // 최빈 학기 찾기
                 Map.Entry<Double, Long> mostFrequentEntry = semesterFrequency.entrySet().stream()
                         .max(Map.Entry.comparingByValue())
                         .get();
                 double mostFrequentSemester = mostFrequentEntry.getKey();
                 long countAtMostFrequentSemester = mostFrequentEntry.getValue();
 
-                // 전체 학생 수 (해당 과목을 수강한 모든 학생 수)
                 long totalStudentsForCourse = allInstancesOfCourse.stream()
-                        .map(SemesterCourse::getUser) // User 객체로 매핑
-                        .distinct() // 중복 사용자 제거
+                        .map(SemesterCourse::getUser)
+                        .distinct()
                         .count();
 
                 double percentage = (totalStudentsForCourse > 0) ? (double) countAtMostFrequentSemester / totalStudentsForCourse * 100 : 0.0;
 
-                // 추천 과목 리스트에 추가
                 recommendedCoursesBySemester.computeIfAbsent(String.format("%d학기", (int) Math.floor(mostFrequentSemester)), k -> new ArrayList<>()).add(new Course("", courseCode, courseName, "", percentage, totalStudentsForCourse, countAtMostFrequentSemester));
             }
         }
 
-        // 학기 순서대로 정렬 (LinkedHashMap이므로 키 순서 유지)
         return recommendedCoursesBySemester.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(Comparator.comparingDouble(s -> {
-                    // "X학기" 또는 "X.Y학기"에서 숫자 부분만 추출하여 double로 변환
                     Pattern pattern = Pattern.compile("([\\d\\.]+)학기");
                     Matcher matcher = pattern.matcher(s);
                     if (matcher.find()) {
                         return Double.parseDouble(matcher.group(1));
                     }
-                    return 0.0; // 매칭되지 않으면 0.0으로 처리 (오류 방지)
+                    return 0.0;
                 })))
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
                         Map.Entry::getValue,
-                        (e1, e2) -> e1, // Merge function, not relevant for sorted
+                        (e1, e2) -> e1,
                         LinkedHashMap::new
                 ));
+    }
+
+    private String getCoursePrefixForMajor(String major) {
+        switch (major) {
+            case "수학": return "MAT";
+            case "물리학": return "PHY";
+            case "화학": return "CHM";
+            case "생명과학": return "BIO";
+            case "전자공학": return "EEE";
+            case "기계공학": return "MEE";
+            case "컴퓨터공학": return "CSE";
+            case "화공생명공학": return "CBE";
+            case "시스템반도체공학": return "SSE";
+            case "인공지능학과": return "AIE";
+            case "경제학": return "ECO";
+            case "경영학": return "MGT";
+            default: return "";
+        }
     }
 }

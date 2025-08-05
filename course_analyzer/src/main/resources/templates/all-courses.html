@@ -25,7 +25,10 @@
     <a href="/logout" class="logout-button">Logout</a>
     <div class="container">
         <img src="/images/logo.jpg" alt="Logo" class="logo">
-        <h1>전체 과목</h1>
+        <h1 th:text="${showMajorCourses} ? '전공 과목' : '전체 과목'"></h1>
+        <button id="toggle-major-courses" class="course-button" style="width: auto; margin-bottom: 20px;">
+            <span th:text="${showMajorCourses} ? '전체 과목 보기' : '전공 과목만 보기'"></span>
+        </button>
         <input type="text" id="search-input" placeholder="과목명으로 검색...">
         <div id="course-list">
             <div th:each="course, iterStat : ${courses}" class="course-item">
@@ -124,6 +127,12 @@
                         activeChartContainer = chartContainer;
                     });
             }
+        });
+
+        const toggleMajorCoursesButton = document.getElementById('toggle-major-courses');
+        toggleMajorCoursesButton.addEventListener('click', () => {
+            const currentShowMajorCourses = [[${showMajorCourses}]];
+            window.location.href = `/all-courses?showMajorCourses=${!currentShowMajorCourses}`;
         });
     </script>
 </body>
