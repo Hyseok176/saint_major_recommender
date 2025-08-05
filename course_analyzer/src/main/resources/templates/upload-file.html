@@ -91,5 +91,42 @@
 
         <p th:if="${error}" class="error-message" th:text="${error}"></p>
     </div>
+
+    <script>
+        function extractAndSetMajors() {
+            const fileInput = document.getElementById('file');
+            if (fileInput.files.length === 0) {
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/extract-majors', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    document.getElementById('major1-select').value = data[0];
+                }
+                if (data.length > 1) {
+                    document.getElementById('major2-select').value = data[1];
+                }
+                if (data.length > 2) {
+                    document.getElementById('major3-select').value = data[2];
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('전공 정보를 가져오는 데 실패했습니다.');
+            });
+        }
+
+        // Add event listener to the file input
+        document.getElementById('file').addEventListener('change', extractAndSetMajors);
+    </script>
 </body>
 </html>

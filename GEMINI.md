@@ -24,3 +24,6 @@
         *   드롭다운 메뉴를 가로로 한 줄에 표시.
         *   드롭다운의 기본 선택 문구를 "미선택"으로 변경.
     *   `CourseController.java`: `uploadFile` 메서드에서 `major1`, `major2`, `major3` 파라미터를 받아 `User` 엔티티의 해당 필드에 저장하도록 수정.
+
+*   **Commit Message Convention**:
+    *   Commit messages will always be in English.

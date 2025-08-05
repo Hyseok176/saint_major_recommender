@@ -216,6 +216,25 @@ public class CourseService {
         return stats;
     }
 
+    public List<String> extractMajorsFromFile(InputStream inputStream) throws IOException {
+        List<String> majors = new ArrayList<>();
+        Pattern majorPattern = Pattern.compile("1전공(.+?)2전공(.+?)3전공(.+)");
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "EUC-KR"))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                Matcher majorMatcher = majorPattern.matcher(line);
+                if (majorMatcher.find()) {
+                    majors.add(majorMatcher.group(1).trim());
+                    majors.add(majorMatcher.group(2).trim());
+                    majors.add(majorMatcher.group(3).trim());
+                    break; // 전공 정보를 찾으면 더 이상 파일을 읽지 않음
+                }
+            }
+        }
+        return majors;
+    }
+
     @Transactional // 트랜잭션으로 묶어 데이터 일관성 유지
     public void saveCoursesToDatabase(User user, Map<String, List<Course>> coursesBySemester) {
         // 기존에 저장된 해당 유저의 학기별 교과목 정보 삭제 (새로운 파일 업로드 시 덮어쓰기)

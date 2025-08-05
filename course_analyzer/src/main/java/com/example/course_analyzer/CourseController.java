@@ -250,4 +250,15 @@ public class CourseController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
+    @PostMapping("/extract-majors")
+    @ResponseBody
+    public ResponseEntity<List<String>> extractMajors(@RequestParam("file") MultipartFile file) {
+        try {
+            List<String> majors = courseService.extractMajorsFromFile(file.getInputStream());
+            return ResponseEntity.ok(majors);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }
