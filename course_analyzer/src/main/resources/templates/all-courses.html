@@ -19,6 +19,25 @@
         .logout-button { position: fixed; top: 10px; right: 10px; background-color: #dc3545; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
         .logout-button:hover { background-color: #c82333; }
         .logo { display: block; margin: 0 auto 20px; width: 80%; max-width: 250px; height: auto; }
+        .filter-buttons { text-align: left; margin-bottom: 20px; }
+        .filter-button {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 8px 16px;
+            margin: 0 5px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .filter-button:hover {
+            background-color: #e0e0e0;
+        }
+        .filter-button.active {
+            background-color: #AF272F;
+            color: white;
+            border-color: #AF272F;
+        }
     </style>
 </head>
 <body>
@@ -26,15 +45,13 @@
     <div class="container">
         <img src="/images/logo.jpg" alt="Logo" class="logo">
         <h1 th:text="${selectedMajor.equals('All')} ? '전체 과목' : ${selectedMajor} + ' 과목'"></h1>
-        <div class="filter-container" style="margin-bottom: 20px;">
-            <label for="major-select" style="margin-right: 10px;">전공 선택:</label>
-            <select id="major-select" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
-                <option value="All" th:selected="${selectedMajor.equals('All')}">전체</option>
-                <option th:each="major : ${userMajors}"
-                        th:value="${major}"
-                        th:text="${major}"
-                        th:selected="${major.equals(selectedMajor)}"></option>
-            </select>
+        <div class="filter-buttons" style="margin-bottom: 20px;">
+            <button class="filter-button" th:classappend="${selectedMajor.equals('All')} ? 'active'" onclick="location.href='/all-courses?major=All'">전체</button>
+            <button th:each="major : ${userMajors}"
+                    class="filter-button"
+                    th:classappend="${major.equals(selectedMajor)} ? 'active'"
+                    th:text="${major}"
+                    th:onclick="|location.href='@{/all-courses(major=${major})}'|"></button>
         </div>
         <input type="text" id="search-input" placeholder="과목명으로 검색...">
         <div id="course-list">
@@ -134,12 +151,6 @@
                         activeChartContainer = chartContainer;
                     });
             }
-        });
-
-        const majorSelect = document.getElementById('major-select');
-        majorSelect.addEventListener('change', () => {
-            const selectedMajor = majorSelect.value;
-            window.location.href = `/all-courses?major=${selectedMajor}`;
         });
     </script>
 </body>

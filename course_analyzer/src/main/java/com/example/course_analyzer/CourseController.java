@@ -117,9 +117,9 @@ public class CourseController {
         String ipAddress = request.getRemoteAddr(); // Get IP address
         try {
             User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
-            user.setMajor1(major1); 
-            user.setMajor2(major2);
-            user.setMajor3(major3);
+            user.setMajor1(major1.replace(" ", "")); 
+            user.setMajor2(major2.replace(" ", ""));
+            user.setMajor3(major3.replace(" ", ""));
             userRepository.save(user); // Save the updated user
             // Pass userId and ipAddress to analyzeFile
             Map<String, Object> analysisResult = courseService.analyzeFile(file.getInputStream(), userId, ipAddress);
