@@ -1,3 +1,21 @@
+## 2025-08-09
+
+*   **보안 강화 및 환경 분리**:
+    *   **Spring Security 도입**:
+        *   `build.gradle`: `spring-boot-starter-security` 의존성을 추가하여 보안 프레임워크를 도입.
+        *   비밀번호 암호화: `BCryptPasswordEncoder`를 사용하여 사용자의 비밀번호를 안전하게 해싱하여 데이터베이스에 저장.
+        *   `CourseController.java`: 기존의 수동 로그인/회원가입 로직을 Spring Security가 인증을 처리하도록 위임하고, 비밀번호 암호화를 적용.
+        *   `index.html`: CSRF(Cross-Site Request Forgery) 공격 방어를 위해 로그인 및 회원가입 폼에 `th:action`을 적용하여 CSRF 토큰을 자동으로 추가.
+        *   `CustomUserDetailsService.java`: Spring Security가 사용자 정보를 데이터베이스에서 조회할 수 있도록 `UserDetailsService`를 구현.
+    *   **Spring 프로파일(Profile)을 이용한 환경 분리**:
+        *   `application.properties`: 기본 활성 프로파일을 `dev`로 설정.
+        *   `application-dev.properties`: 개발 환경용 설정을 분리. H2 콘솔 활성화 및 개발용 DB 설정을 포함.
+        *   `application-prod.properties`: 운영 환경용 설정 파일을 생성. 운영 DB 설정을 위한 플레이스홀더를 포함.
+    *   **보안 설정(SecurityConfig) 프로파일 분리**:
+        *   `SecurityConfig.java`: `@Profile` 어노테이션을 사용하여 개발(`dev`)과 운영(`!dev`) 환경에 따라 다른 보안 규칙을 적용하도록 수정.
+            *   **개발 환경**: H2 콘솔 접근을 허용하고 관련 보안(CSRF, frame-options)을 설정.
+            *   **운영 환경**: H2 콘솔 접근을 차단하고, CSRF 보호 기능을 전면 활성화하여 보안을 강화.
+
 ## 2025-08-07
 
 *   **'전체 과목 보기' 필터 UI 개선**:
