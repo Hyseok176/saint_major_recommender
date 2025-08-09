@@ -1,5 +1,24 @@
 ## 2025-08-09
 
+*   **카카오 소셜 로그인 구현**:
+    *   `build.gradle`: Spring Security OAuth2 Client 의존성을 추가.
+    *   `application.properties`: 카카오 로그인을 위한 OAuth2 클라이언트 ID, 시크릿 및 프로바이더 정보를 설정.
+    *   `User.java`, `UserRepository.java`: 기존의 비밀번호 기반 인증 필드를 제거하고, OAuth2 제공자(provider, providerId)와 이메일 필드를 추가. `findByProviderAndProviderId` 쿼리 메소드를 구현.
+    *   `CustomOAuth2UserService.java`: 카카오로부터 사용자 정보를 받아온 후, 기존 사용자는 업데이트하고 신규 사용자는 데이터베이스에 새로 등록하는 핵심 로직을 구현.
+    *   `SecurityConfig.java`: 기존의 폼 기반 로그인 설정을 모두 제거하고, `oauth2Login`을 사용하여 `CustomOAuth2UserService`를 사용하도록 변경. H2 콘솔 접근을 위해 개발/운영 프로파일 설정을 다시 분리.
+    *   `CustomUserDetailsService.java`: 더 이상 사용되지 않아 삭제.
+    *   `CourseController.java`: 기존의 `/register`, `/login` 엔드포인트를 삭제하고, `Principal` 객체에서 사용자 정보를 조회하는 로직을 OAuth2 방식에 맞게 수정.
+
+*   **UI/UX 개선**:
+    *   `index.html`: 
+        *   기존의 로그인/회원가입 폼을 '카카오로 로그인하기' 버튼으로 교체.
+        *   깨진 이미지 대신 카카오의 공식 로그인 버튼 이미지를 사용하도록 수정.
+        *   사이트 이름 '서강이드'와 기능 소개 문구를 추가하여 초기 페이지 콘텐츠를 보강.
+        *   '서강이드' 텍스트에 서강대학교 공식 색상(`#A60026`)을 적용.
+        *   사용자 피드백에 따라 로고, 타이틀, 설명, 버튼 간의 수직 간격을 미세 조정.
+    *   `recommend.html`: '이전으로', '전체 과목 보기' 버튼이 가로로 정렬되도록 Flexbox를 사용하여 스타일을 수정.
+    *   `all-courses.html`: 페이지 바깥에 있던 '이전으로' 버튼을 메인 컨테이너 안으로 이동시키고 다른 페이지와 스타일을 통일.
+
 *   **'전체 과목 보기' 기능 개선**:
     *   `CourseStatDto.java`: 총 수강생 수 정보를 과목 정보와 함께 다루기 위한 DTO를 생성.
     *   `SemesterCourseRepository.java`: 과목별 총 수강생 수를 효율적으로 계산하기 위해 `countDistinctUsersByCourseCode` 쿼리 메소드를 추가.

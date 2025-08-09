@@ -1,9 +1,7 @@
 package com.example.course_analyzer;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,12 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
 import java.io.IOException;
 import java.security.Principal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,47 +30,18 @@ public class CourseController {
     private CourseService courseService;
 
     @Autowired
-    private UserRepository userRepository; // UserRepository 주입
-    @Autowired
-    private SemesterCourseRepository semesterCourseRepository; // SemesterCourseRepository 주입
+    private UserRepository userRepository;
 
     @Autowired
-    private CourseMappingRepository courseMappingRepository; // CourseMappingRepository 주입
+    private SemesterCourseRepository semesterCourseRepository;
 
     @Autowired
-    private PasswordEncoder passwordEncoder;
+    private CourseMappingRepository courseMappingRepository;
 
     @GetMapping("/")
     public String index() {
         return "index";
     }
-
-    @PostMapping("/register") // 회원가입 처리 (간단한 예시)
-    public String register(@RequestParam("username") String username,
-                           @RequestParam("password") String password,
-                           HttpServletRequest request,
-                           RedirectAttributes redirectAttributes) { // Model 대신 RedirectAttributes 사용
-        if (userRepository.findById(username).isPresent()) {
-            redirectAttributes.addFlashAttribute("error", "이미 존재하는 사용자 이름입니다.");
-            return "redirect:/";
-        }
-        User newUser = new User();
-        
-        newUser.setPassword(passwordEncoder.encode(password)); // 비밀번호 암호화
-        newUser.setId(username); // 학번을 ID로 설정
-        Long maxOrder = userRepository.findMaxUserOrder();
-        newUser.setUserOrder(maxOrder != null ? maxOrder + 1 : 1L);
-        userRepository.save(newUser);
-
-        // 로그 출력
-        String ip = request.getRemoteAddr();
-        String now = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        System.out.println(String.format("Register: %s, User: %s, IP: %s", now, newUser.getId(), ip));
-
-        redirectAttributes.addFlashAttribute("message", "회원가입이 완료되었습니다. 로그인해주세요.");
-        return "redirect:/"; // 루트로 리다이렉트
-    }
-
 
     @PostMapping("/upload")
     public String uploadFile(@RequestParam("file") MultipartFile file,
@@ -84,35 +50,31 @@ public class CourseController {
                              @RequestParam("major3") String major3,
                              Principal principal,
                              Model model,
-                             HttpServletRequest request, // Added HttpServletRequest
-                             RedirectAttributes redirectAttributes) {
-        String userId = principal.getName();
-        String ipAddress = request.getRemoteAddr(); // Get IP address
+                             HttpServletRequest request) {
+        String providerId = principal.getName();
+        String ipAddress = request.getRemoteAddr();
         try {
-            User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
-            user.setMajor1(major1.replace(" ", "")); 
-            user.setMajor2(major2.replace(" ", ""));
-            user.setMajor3(major3.replace(" ", ""));
-            userRepository.save(user); // Save the updated user
-            // Pass userId and ipAddress to analyzeFile
-            Map<String, Object> analysisResult = courseService.analyzeFile(file.getInputStream(), userId, ipAddress);
-            List<Course> rawCourses = (List<Course>) analysisResult.get("rawCourses");
-            Map<String, List<Course>> coursesBySemester = courseService.groupAndFormatCourses(rawCourses);
-
-            // 기존 saveAnalyzedCourses 대신 데이터베이스에 저장하는 로직 호출
-            courseService.saveCoursesToDatabase(user, coursesBySemester);
+            User user = userRepository.findByProviderAndProviderId("kakao", providerId)
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + providerId));
+            
+            courseService.updateUserTranscript(user, file, major1, major2, major3, ipAddress);
 
             return "redirect:/results";
         } catch (IOException e) {
             model.addAttribute("error", "Error processing file: " + e.getMessage());
-            return "upload-file"; // Stay on upload page with error
+            return "upload-file";
         }
     }
 
     @GetMapping("/results")
-    public String showResults(Principal principal, Model model, RedirectAttributes redirectAttributes) {
-        String userId = principal.getName();
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
+    public String showResults(Principal principal, Model model) {
+        if (principal == null) {
+            return "redirect:/";
+        }
+        String providerId = principal.getName();
+        User user = userRepository.findByProviderAndProviderId("kakao", providerId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + providerId));
+
         List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
 
         if (savedCourses.isEmpty()) {
@@ -121,16 +83,15 @@ public class CourseController {
 
         Map<Double, List<Course>> coursesBySemester = savedCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
-                        LinkedHashMap::new, // 순서 유지를 위해 LinkedHashMap 사용
+                        LinkedHashMap::new,
                         Collectors.mapping(sc -> {
-                            String courseCode = sc.getCourseCode(); // SEMESTER_COURSE에는 과목 코드가 저장되어 있음
+                            String courseCode = sc.getCourseCode();
                             String actualCourseName = courseMappingRepository.findById(courseCode)
                                     .map(CourseMapping::getCourseName)
-                                    .orElse(courseCode); // 매핑된 이름이 없으면 과목 코드를 그대로 사용
+                                    .orElse(courseCode);
                             return new Course(String.valueOf(sc.getSemester()), courseCode, actualCourseName, sc.getGrade());
                         }, Collectors.toList())));
 
-        // 학기 순서 정렬
         Map<Double, List<Course>> sortedCoursesBySemester = coursesBySemester.entrySet().stream()
                 .sorted(Comparator.comparing(Map.Entry::getKey))
                 .collect(Collectors.toMap(
@@ -145,16 +106,15 @@ public class CourseController {
     }
 
     @GetMapping("/upload-form")
-    public String showUploadForm(Principal principal, Model model, RedirectAttributes redirectAttributes) {
-        // This method now implicitly requires authentication due to SecurityConfig
+    public String showUploadForm() {
         return "upload-file";
     }
 
     @GetMapping("/recommend")
-    public String recommend(Principal principal, Model model, RedirectAttributes redirectAttributes) {
-        String userId = principal.getName();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + userId));
+    public String recommend(Principal principal, Model model) {
+        String providerId = principal.getName();
+        User user = userRepository.findByProviderAndProviderId("kakao", providerId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + providerId));
 
         List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
 
@@ -163,7 +123,6 @@ public class CourseController {
                 .max()
                 .orElse(0.0);
 
-        // 추천 로직 추가
         Map<String, List<Course>> recommendedCourses = courseService.recommendCourses(user);
 
         model.addAttribute("title", "과목 추천");
@@ -175,12 +134,12 @@ public class CourseController {
 
     @GetMapping("/all-courses")
     public String showAllCourses(@RequestParam(value = "major", required = false) String major,
-                                 Principal principal, Model model, RedirectAttributes redirectAttributes) {
-        String userId = principal.getName();
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("Invalid user ID"));
+                                 Principal principal, Model model) {
+        String providerId = principal.getName();
+        User user = userRepository.findByProviderAndProviderId("kakao", providerId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + providerId));
 
-        // Get user's majors for the dropdown, filtering out empty or "미선택" values
-        List<String> userMajors = new java.util.ArrayList<>();
+        List<String> userMajors = new ArrayList<>();
         if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
             userMajors.add(user.getMajor1());
         }
@@ -192,16 +151,14 @@ public class CourseController {
         }
         model.addAttribute("userMajors", userMajors);
 
-        String selectedMajor = "All"; // Default
+        String selectedMajor = "All";
 
         if (major != null && !major.isEmpty() && !major.equals("All")) {
-            // Filter by the selected major
             String majorPrefix = getCoursePrefixForMajor(major);
             List<CourseStatDto> courses = courseService.getCoursesByMajor(majorPrefix);
             model.addAttribute("courses", courses);
             selectedMajor = major;
         } else {
-            // Show all courses by default or when "All" is selected
             List<CourseMapping> courses = courseService.getAllCourses();
             model.addAttribute("courses", courses);
         }
@@ -224,7 +181,7 @@ public class CourseController {
             case "인공지능학과": return "AIE";
             case "경제학": return "ECO";
             case "경영학": return "MGT";
-            default: return ""; // Should not happen if "미선택" is handled
+            default: return "";
         }
     }
 

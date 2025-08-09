@@ -14,8 +14,9 @@
         .course-button { width: 100%; padding: 15px; background-color: #e9ecef; border: none; border-radius: 4px; text-align: left; cursor: pointer; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
         .course-button:hover { background-color: #dcdcdc; }
         .chart-container { display: none; padding: 20px 0; max-height: 300px; }
-        .back-button { display: block; width: 150px; margin: 30px auto 0; padding: 10px; text-align: center; background-color: #AF272F; color: white; text-decoration: none; border-radius: 4px; }
-        .back-button:hover { background-color: #9e232b; }
+        .button-container { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
+        .action-button { display: block; width: 150px; padding: 10px; text-align: center; background-color: #AF272F; color: white; text-decoration: none; border-radius: 4px; }
+        .action-button:hover { background-color: #9e232b; }
         .logout-button { position: fixed; top: 10px; right: 10px; background-color: #dc3545; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
         .logout-button:hover { background-color: #c82333; }
         .logo { display: block; margin: 0 auto 20px; width: 80%; max-width: 250px; height: auto; }
@@ -41,9 +42,7 @@
     </style>
 </head>
 <body>
-    <form th:action="@{/logout}" method="post" style="position: fixed; top: 10px; right: 10px;">
-        <button type="submit" class="logout-button">Logout</button>
-    </form>
+    <a th:href="@{/logout}" class="logout-button">Logout</a>
     <div class="container">
         <img src="/images/logo.jpg" alt="Logo" class="logo">
         <h1 th:text="${selectedMajor.equals('All')} ? '전체 과목' : ${selectedMajor} + ' 과목'"></h1>
@@ -69,9 +68,10 @@
                     <canvas :id="'courseChart-' + ${iterStat.index}"></canvas>
                 </div>
             </div>
+        <div class="button-container">
+            <a th:href="@{/results}" class="action-button">이전으로</a>
         </div>
     </div>
-    <a th:href="@{/results}" class="back-button">이전으로</a>
 
     <script>
         const searchInput = document.getElementById('search-input');

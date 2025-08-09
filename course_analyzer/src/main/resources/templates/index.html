@@ -2,66 +2,60 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로그인 / 회원가입</title>
+    <title>Course Analyzer</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
-        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        h1 { color: #333; text-align: center; margin-bottom: 30px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; }
-        input[type="text"], input[type="password"] { width: calc(100% - 22px); padding: 10px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px; }
-        button { background-color: #AF272F; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; margin-bottom: 10px; }
-        button:hover { background-color: #9e232b; }
-        .message { color: green; text-align: center; margin-bottom: 15px; }
-        .error { color: red; text-align: center; margin-bottom: 15px; }
-        .form-section { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
-        .form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-        .logo { display: block; margin: 0 auto 20px; width: 80%; max-width: 250px; height: auto; }
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 50px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .logo {
+            margin-bottom: 5px;
+        }
+        .site-title {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: #A60026;
+            margin: 0 0 10px 0;
+        }
+        .site-description {
+            font-size: 1.1em;
+            color: #495057;
+            line-height: 1.6;
+            margin-bottom: 75px;
+        }
+        .kakao-login-btn {
+            display: inline-block;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <img src="/images/logo.jpg" alt="Logo" class="logo">
-        <h1>로그인 또는 회원가입</h1>
-        
-        <!-- 회원가입 성공 메시지 -->
-        <div th:if="${message}" class="message" th:text="${message}"></div>
-
-        <!-- 로그인 실패 메시지 -->
-        <div th:if="${param.error}" class="error">
-            사용자 이름 또는 비밀번호가 잘못되었습니다.
-        </div>
-
-        <!-- 회원가입 실패 메시지 -->
-        <div th:if="${error}" class="error" th:text="${error}"></div>
-        
-        <div class="form-section">
-            <h2>로그인</h2>
-            <!-- th:action을 사용하여 CSRF 토큰이 자동으로 포함되도록 함 -->
-            <form th:action="@{/login}" method="post">
-                <label for="loginUsername">사용자 이름:</label>
-                <input type="text" id="loginUsername" name="username" required>
-                
-                <label for="loginPassword">비밀번호:</label>
-                <input type="password" id="loginPassword" name="password" required>
-                
-                <button type="submit">로그인</button>
-            </form>
-        </div>
-
-        <div class="form-section">
-            <h2>회원가입</h2>
-            <!-- th:action을 사용하여 CSRF 토큰이 자동으로 포함되도록 함 -->
-            <form th:action="@{/register}" method="post">
-                <label for="registerUsername">사용자 이름:</label>
-                <input type="text" id="registerUsername" name="username" required>
-                
-                <label for="registerPassword">비밀번호:</label>
-                <input type="password" id="registerPassword" name="password" required>
-                
-                <button type="submit">회원가입</button>
-            </form>
-        </div>
+<div class="container">
+    <div class="logo">
+        <img src="/images/logo.jpg" alt="Course Analyzer Logo" width="280">
     </div>
+    <h1 class="site-title">서강이드</h1>
+    <p class="site-description">
+        성적표 분석을 통해 합리적인 수강 계획을 세워보세요.<br>
+        과목 추천, 선수 과목 조회, 학기별 통계 정보를 제공합니다.
+    </p>
+    <div class="kakao-login-btn">
+        <a href="/oauth2/authorization/kakao">
+            <img src="https://developers.kakao.com/tool/resource/static/img/button/login/full/ko/kakao_login_medium_wide.png" alt="카카오 로그인">
+        </a>
+    </div>
+</div>
 </body>
 </html>

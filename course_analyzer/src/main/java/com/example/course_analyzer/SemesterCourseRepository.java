@@ -12,4 +12,6 @@ public interface SemesterCourseRepository extends JpaRepository<SemesterCourse, 
 
     @Query("SELECT COUNT(DISTINCT sc.user.id) FROM SemesterCourse sc WHERE sc.courseCode = :courseCode")
     long countDistinctUsersByCourseCode(@Param("courseCode") String courseCode);
+
+    void deleteByUser(User user);
 }

@@ -1,22 +1,58 @@
 package com.example.course_analyzer;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Table; // Table 어노테이션 임포트
-import lombok.Data;
+import jakarta.persistence.Table;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+@Getter
+@Setter
+@NoArgsConstructor
 @Entity
-@Data
-@Table(name = "users") // 테이블 이름을 "users"로 명시적으로 지정
+@Table(name = "users") // 'user' is a reserved keyword in some databases, so use 'users'
 public class User {
+
     @Id
-    private String id;
-    
-    private String password;
-    private Long userOrder;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String username; // This will store the unique user identifier
+
+    @Column(nullable = false)
+    private String nickname; // The display name for the user
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    private String provider; // e.g., "kakao"
+    private String providerId; // The unique ID from the provider
+
+    // Major fields
     private String major1;
     private String major2;
     private String major3;
+
+    @Builder
+    public User(String username, String nickname, String email, String provider, String providerId, String major1, String major2, String major3) {
+        this.username = username;
+        this.nickname = nickname;
+        this.email = email;
+        this.provider = provider;
+        this.providerId = providerId;
+        this.major1 = major1;
+        this.major2 = major2;
+        this.major3 = major3;
+    }
+
+    public User update(String nickname) {
+        this.nickname = nickname;
+        return this;
+    }
 }
