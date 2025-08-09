@@ -22,7 +22,9 @@
     </style>
 </head>
 <body>
-<a href="/logout" class="logout-button">Logout</a>
+<form th:action="@{/logout}" method="post" style="position: fixed; top: 10px; right: 10px;">
+    <button type="submit" class="logout-button">Logout</button>
+</form>
 <div class="container">
     <img src="/images/logo.jpg" alt="Logo" class="logo">
     <h1 th:text="${title}"></h1>

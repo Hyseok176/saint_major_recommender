@@ -170,7 +170,7 @@ public class CourseService {
     }
 
     public List<CourseMapping> getAllCourses() {
-        return courseMappingRepository.findAllExcludingCodes();
+        return courseMappingRepository.findAll();
     }
 
     public Map<String, Object> getCourseStats(String subjectCode) {
