@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,12 +23,22 @@
     <div class="container">
         <img src="/images/logo.jpg" alt="Logo" class="logo">
         <h1>로그인 또는 회원가입</h1>
+        
+        <!-- 회원가입 성공 메시지 -->
         <div th:if="${message}" class="message" th:text="${message}"></div>
+
+        <!-- 로그인 실패 메시지 -->
+        <div th:if="${param.error}" class="error">
+            사용자 이름 또는 비밀번호가 잘못되었습니다.
+        </div>
+
+        <!-- 회원가입 실패 메시지 -->
         <div th:if="${error}" class="error" th:text="${error}"></div>
         
         <div class="form-section">
             <h2>로그인</h2>
-            <form action="/login" method="post">
+            <!-- th:action을 사용하여 CSRF 토큰이 자동으로 포함되도록 함 -->
+            <form th:action="@{/login}" method="post">
                 <label for="loginUsername">사용자 이름:</label>
                 <input type="text" id="loginUsername" name="username" required>
                 
@@ -41,7 +51,8 @@
 
         <div class="form-section">
             <h2>회원가입</h2>
-            <form action="/register" method="post">
+            <!-- th:action을 사용하여 CSRF 토큰이 자동으로 포함되도록 함 -->
+            <form th:action="@{/register}" method="post">
                 <label for="registerUsername">사용자 이름:</label>
                 <input type="text" id="registerUsername" name="username" required>
                 
