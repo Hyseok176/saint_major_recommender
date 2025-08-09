@@ -192,20 +192,20 @@ public class CourseController {
         }
         model.addAttribute("userMajors", userMajors);
 
-        List<CourseMapping> courses;
         String selectedMajor = "All"; // Default
 
         if (major != null && !major.isEmpty() && !major.equals("All")) {
             // Filter by the selected major
             String majorPrefix = getCoursePrefixForMajor(major);
-            courses = courseService.getCoursesByMajor(majorPrefix);
+            List<CourseStatDto> courses = courseService.getCoursesByMajor(majorPrefix);
+            model.addAttribute("courses", courses);
             selectedMajor = major;
         } else {
             // Show all courses by default or when "All" is selected
-            courses = courseService.getAllCourses();
+            List<CourseMapping> courses = courseService.getAllCourses();
+            model.addAttribute("courses", courses);
         }
 
-        model.addAttribute("courses", courses);
         model.addAttribute("selectedMajor", selectedMajor);
         return "all-courses";
     }

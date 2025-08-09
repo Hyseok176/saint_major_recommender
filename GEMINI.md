@@ -1,5 +1,13 @@
 ## 2025-08-09
 
+*   **'전체 과목 보기' 기능 개선**:
+    *   `CourseStatDto.java`: 총 수강생 수 정보를 과목 정보와 함께 다루기 위한 DTO를 생성.
+    *   `SemesterCourseRepository.java`: 과목별 총 수강생 수를 효율적으로 계산하기 위해 `countDistinctUsersByCourseCode` 쿼리 메소드를 추가.
+    *   `CourseService.java`: 특정 전공의 과목 목록 조회 시, 과목별 총 수강생 수를 계산하고 이 수를 기준으로 내림차순 정렬하는 로직으로 변경.
+    *   `all-courses.html`:
+        *   전공별 과목 목록에서 과목 코드 우측에 총 수강생 수를 회색 글씨로 표시.
+        *   Flexbox를 사용하여 수강생 수가 버튼의 오른쪽 끝에 정렬되도록 스타일을 개선.
+
 *   **보안 강화 및 환경 분리**:
     *   **Spring Security 도입**:
         *   `build.gradle`: `spring-boot-starter-security` 의존성을 추가하여 보안 프레임워크를 도입.

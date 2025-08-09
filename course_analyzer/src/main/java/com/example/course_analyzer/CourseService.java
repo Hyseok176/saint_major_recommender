@@ -273,8 +273,16 @@ public class CourseService {
                 .collect(Collectors.toList());
     }
 
-    public List<CourseMapping> getCoursesByMajor(String majorPrefix) {
-        return courseMappingRepository.findByCourseCodeStartingWith(majorPrefix);
+    public List<CourseStatDto> getCoursesByMajor(String majorPrefix) {
+        List<CourseMapping> courses = courseMappingRepository.findByCourseCodeStartingWith(majorPrefix);
+        
+        return courses.stream()
+                .map(course -> {
+                    long studentCount = semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode());
+                    return new CourseStatDto(course.getCourseCode(), course.getCourseName(), studentCount);
+                })
+                .sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed())
+                .collect(Collectors.toList());
     }
 
     public Map<String, List<Course>> recommendCourses(User user) {
