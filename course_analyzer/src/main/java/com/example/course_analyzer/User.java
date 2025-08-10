@@ -15,7 +15,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "users") // 'user' is a reserved keyword in some databases, so use 'users'
+@Table(name = "users")
 public class User {
 
     @Id
@@ -23,25 +23,32 @@ public class User {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String username; // This will store the unique user identifier
+    private String username;
 
-    @Column(nullable = false)
+    @Column
+    private String password;
+
+        @Column
     private String nickname; // The display name for the user
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true)
     private String email;
 
-    private String provider; // e.g., "kakao"
-    private String providerId; // The unique ID from the provider
+    private String provider;
+    private String providerId;
 
-    // Major fields
     private String major1;
     private String major2;
     private String major3;
 
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt; // Timestamp for registration order
+
     @Builder
-    public User(String username, String nickname, String email, String provider, String providerId, String major1, String major2, String major3) {
+    public User(String username, String password, String nickname, String email, String provider, String providerId, String major1, String major2, String major3) {
         this.username = username;
+        this.password = password;
         this.nickname = nickname;
         this.email = email;
         this.provider = provider;

@@ -51,6 +51,32 @@
         성적표 분석을 통해 합리적인 수강 계획을 세워보세요.<br>
         과목 추천, 선수 과목 조회, 학기별 통계 정보를 제공합니다.
     </p>
+
+    <!-- Login and Register Forms -->
+    <div style="display: flex; justify-content: center; gap: 40px; margin-bottom: 40px;">
+        <!-- Registration Form -->
+        <div style="width: 300px;">
+            <h3 style="color: #343a40;">회원가입</h3>
+            <form th:action="@{/register}" method="post" style="display: flex; flex-direction: column; gap: 10px;">
+                <input type="text" name="username" placeholder="사용자 ID" required style="padding: 10px; border-radius: 5px; border: 1px solid #ced4da;">
+                <input type="password" name="password" placeholder="비밀번호" required style="padding: 10px; border-radius: 5px; border: 1px solid #ced4da;">
+                <button type="submit" style="padding: 10px; border-radius: 5px; border: none; background-color: #A60026; color: white; cursor: pointer;">가입하기</button>
+            </form>
+        </div>
+
+        <!-- Login Form -->
+        <div style="width: 300px;">
+            <h3 style="color: #343a40;">로그인</h3>
+            <form th:action="@{/login}" method="post" style="display: flex; flex-direction: column; gap: 10px;">
+                <input type="text" name="username" placeholder="사용자 ID" required style="padding: 10px; border-radius: 5px; border: 1px solid #ced4da;">
+                <input type="password" name="password" placeholder="비밀번호" required style="padding: 10px; border-radius: 5px; border: 1px solid #ced4da;">
+                <button type="submit" style="padding: 10px; border-radius: 5px; border: none; background-color: #28a745; color: white; cursor: pointer;">로그인</button>
+            </form>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 20px; color: #6c757d;">또는</div>
+
     <div class="kakao-login-btn">
         <a href="/oauth2/authorization/kakao">
             <img src="https://developers.kakao.com/tool/resource/static/img/button/login/full/ko/kakao_login_medium_wide.png" alt="카카오 로그인">
