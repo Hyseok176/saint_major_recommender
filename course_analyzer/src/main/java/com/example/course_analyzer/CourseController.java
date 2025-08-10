@@ -78,7 +78,8 @@ public class CourseController {
                              @RequestParam("major2") String major2,
                              @RequestParam("major3") String major3,
                              Model model,
-                             HttpServletRequest request) {
+                             HttpServletRequest request,
+                             RedirectAttributes redirectAttributes) { // Added RedirectAttributes
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
         String ipAddress = request.getRemoteAddr();
@@ -86,8 +87,8 @@ public class CourseController {
             courseService.updateUserTranscript(user, file, major1, major2, major3, ipAddress);
             return "redirect:/results";
         } catch (IOException e) {
-            model.addAttribute("error", "Error processing file: " + e.getMessage());
-            return "upload-file";
+            redirectAttributes.addFlashAttribute("error", "파일 처리 중 오류가 발생했습니다. 파일 형식을 확인해주세요."); // Changed to RedirectAttributes
+            return "redirect:/upload-form"; // Redirect to upload-form
         }
     }
 
@@ -126,12 +127,9 @@ public class CourseController {
     public String recommend(Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
-        List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
-        double maxSemester = savedCourses.stream().mapToDouble(SemesterCourse::getSemester).max().orElse(0.0);
-        Map<String, List<Course>> recommendedCourses = courseService.recommendCourses(user);
+        Map<String, List<CourseStatDto>> recommendedCoursesMap = courseService.recommendCourses(user);
         model.addAttribute("title", "과목 추천");
-        model.addAttribute("recommendedCourses", recommendedCourses);
-        model.addAttribute("maxSemester", maxSemester);
+        model.addAttribute("recommendedCoursesMap", recommendedCoursesMap);
         return "recommend";
     }
 
@@ -146,13 +144,31 @@ public class CourseController {
         if (user.getMajor3() != null && !user.getMajor3().isEmpty()) userMajors.add(user.getMajor3());
         model.addAttribute("userMajors", userMajors);
 
-        if (major != null && !major.isEmpty() && !major.equals("All")) {
-            String majorPrefix = getCoursePrefixForMajor(major);
+        if ("NonMajor".equals(major)) { // New condition for "비전공"
+            List<CourseMapping> nonMajorCourseMappings = courseService.getNonMajorCourses(user);
+            List<CourseStatDto> courses = nonMajorCourseMappings.stream()
+                    .map(course -> new CourseStatDto(
+                            course.getCourseCode(),
+                            course.getCourseName(),
+                            semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
+                    ))
+                    .collect(Collectors.toList());
+            model.addAttribute("courses", courses);
+            model.addAttribute("selectedMajor", "NonMajor");
+        } else if (major != null && !major.isEmpty() && !"All".equals(major)) { // Existing major filtering logic
+            String majorPrefix = courseService.getCoursePrefixForMajor(major);
             List<CourseStatDto> courses = courseService.getCoursesByMajor(majorPrefix);
             model.addAttribute("courses", courses);
             model.addAttribute("selectedMajor", major);
-        } else {
-            List<CourseMapping> courses = courseService.getAllCourses();
+        } else { // Default case when major is "All" or null/empty
+            List<CourseMapping> allCourseMappings = courseService.getAllCourses();
+            List<CourseStatDto> courses = allCourseMappings.stream()
+                    .map(course -> new CourseStatDto(
+                            course.getCourseCode(),
+                            course.getCourseName(),
+                            semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
+                    ))
+                    .collect(Collectors.toList());
             model.addAttribute("courses", courses);
             model.addAttribute("selectedMajor", "All");
         }
@@ -160,24 +176,7 @@ public class CourseController {
         return "all-courses";
     }
 
-    private String getCoursePrefixForMajor(String major) {
-        switch (major) {
-            case "수학": return "MAT";
-            case "물리학": return "PHY";
-            case "화학": return "CHM";
-            case "생명과학": return "BIO";
-            case "전자공학": return "EEE";
-            case "기계공학": return "MEE";
-            case "컴퓨터공학": return "CSE";
-            case "화공생명공학": return "CBE";
-            case "시스템반도체공학": return "SSE";
-            case "인공지능학과": return "AIE";
-            case "경제학": return "ECO";
-            case "경영학": return "MGT";
-            case "교육문화": return "EDU";
-            default: return "";
-        }
-    }
+    
 
     @GetMapping("/api/course-stats/{subjectCode}")
     @ResponseBody

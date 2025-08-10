@@ -209,33 +209,83 @@ public class CourseService {
         return courses.stream().map(course -> new CourseStatDto(course.getCourseCode(), course.getCourseName(), semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode()))).sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed()).collect(Collectors.toList());
     }
 
-    public Map<String, List<Course>> recommendCourses(User user) {
-        Map<String, List<Course>> recommendedCoursesBySemester = new LinkedHashMap<>();
+    public List<CourseMapping> getNonMajorCourses(User user) {
+        List<CourseMapping> allCourses = courseMappingRepository.findAll();
         List<String> userMajorPrefixes = new ArrayList<>();
-        if (user.getMajor1() != null && !user.getMajor1().equals("미선택")) userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
-        if (user.getMajor2() != null && !user.getMajor2().equals("미선택")) userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor2()));
-        if (user.getMajor3() != null && !user.getMajor3().equals("미선택")) userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
-        if (userMajorPrefixes.isEmpty()) return recommendedCoursesBySemester;
-
-        List<String> userTakenCourseCodes = semesterCourseRepository.findByUser(user).stream().map(SemesterCourse::getCourseCode).collect(Collectors.toList());
-        List<CourseMapping> unTakenMajorCourses = courseMappingRepository.findAll().stream().filter(course -> userMajorPrefixes.stream().anyMatch(prefix -> course.getCourseCode().startsWith(prefix))).filter(course -> !userTakenCourseCodes.contains(course.getCourseCode())).collect(Collectors.toList());
-
-        for (CourseMapping majorCourse : unTakenMajorCourses) {
-            List<SemesterCourse> allInstancesOfCourse = semesterCourseRepository.findByCourseCode(majorCourse.getCourseCode());
-            if (!allInstancesOfCourse.isEmpty()) {
-                Map.Entry<Double, Long> mostFrequentEntry = allInstancesOfCourse.stream().collect(Collectors.groupingBy(SemesterCourse::getSemester, Collectors.counting())).entrySet().stream().max(Map.Entry.comparingByValue()).get();
-                double mostFrequentSemester = mostFrequentEntry.getKey();
-                long countAtMostFrequentSemester = mostFrequentEntry.getValue();
-                long totalStudentsForCourse = allInstancesOfCourse.stream().map(SemesterCourse::getUser).distinct().count();
-                double percentage = (totalStudentsForCourse > 0) ? (double) countAtMostFrequentSemester / totalStudentsForCourse * 100 : 0.0;
-                recommendedCoursesBySemester.computeIfAbsent(String.format("%d학기", (int) Math.floor(mostFrequentSemester)), k -> new ArrayList<>()).add(new Course("", majorCourse.getCourseCode(), majorCourse.getCourseName(), "", percentage, totalStudentsForCourse, countAtMostFrequentSemester));
-            }
+        if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
+        }
+        if (user.getMajor2() != null && !user.getMajor2().isEmpty() && !user.getMajor2().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor2()));
+        }
+        if (user.getMajor3() != null && !user.getMajor3().isEmpty() && !user.getMajor3().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
         }
 
-        return recommendedCoursesBySemester.entrySet().stream().sorted(Map.Entry.comparingByKey(Comparator.comparingDouble(s -> Double.parseDouble(s.replaceAll("학기", "").trim())))).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+        // Filter out courses that belong to ANY of the user's declared majors
+        return allCourses.stream()
+                .filter(course -> userMajorPrefixes.stream().noneMatch(prefix -> course.getCourseCode().startsWith(prefix)))
+                .collect(Collectors.toList());
     }
 
-    private String getCoursePrefixForMajor(String major) {
+    public Map<String, List<CourseStatDto>> recommendCourses(User user) {
+        // 1. Get user's major prefixes
+        List<String> userMajorPrefixes = new ArrayList<>();
+        if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
+        }
+        if (user.getMajor2() != null && !user.getMajor2().isEmpty() && !user.getMajor2().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor2()));
+        }
+        if (user.getMajor3() != null && !user.getMajor3().isEmpty() && !user.getMajor3().equals("미선택")) {
+            userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
+        }
+
+        // 2. Get all courses and user's taken courses
+        List<CourseMapping> allCourses = courseMappingRepository.findAll();
+        List<String> userTakenCourseCodes = semesterCourseRepository.findByUser(user).stream()
+                .map(SemesterCourse::getCourseCode)
+                .collect(Collectors.toList());
+
+        // 3. Major Recommendations
+        List<CourseStatDto> majorRecommendations = new ArrayList<>();
+        if (!userMajorPrefixes.isEmpty()) {
+            majorRecommendations = allCourses.stream()
+                    .filter(course -> userMajorPrefixes.stream().anyMatch(prefix -> !prefix.isEmpty() && course.getCourseCode().startsWith(prefix)))
+                    .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
+                    .map(course -> new CourseStatDto(
+                            course.getCourseCode(),
+                            course.getCourseName(),
+                            semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
+                    ))
+                    .sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed())
+                    .limit(5)
+                    .collect(Collectors.toList());
+        }
+
+        // 4. GE Recommendations
+        List<String> allMajorPrefixes = List.of("MAT", "PHY", "CHM", "BIO", "EEE", "MEE", "CSE", "CBE", "SSE", "AIE", "ECO", "MGT", "EDU"); // All possible major prefixes
+        List<CourseStatDto> geRecommendations = allCourses.stream()
+                .filter(course -> allMajorPrefixes.stream().noneMatch(prefix -> course.getCourseCode().startsWith(prefix)))
+                .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
+                .map(course -> new CourseStatDto(
+                        course.getCourseCode(),
+                        course.getCourseName(),
+                        semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
+                ))
+                .sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed())
+                .limit(5)
+                .collect(Collectors.toList());
+
+        // 5. Combine into a map
+        Map<String, List<CourseStatDto>> recommendationsMap = new HashMap<>();
+        recommendationsMap.put("major", majorRecommendations);
+        recommendationsMap.put("ge", geRecommendations);
+
+        return recommendationsMap;
+    }
+
+    public String getCoursePrefixForMajor(String major) {
         switch (major) {
             case "수학": return "MAT";
             case "물리학": return "PHY";
@@ -249,6 +299,7 @@ public class CourseService {
             case "인공지능학과": return "AIE";
             case "경제학": return "ECO";
             case "경영학": return "MGT";
+            case "교육문화": return "EDU";
             default: return "";
         }
     }

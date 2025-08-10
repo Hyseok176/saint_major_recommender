@@ -34,22 +34,36 @@
     <img src="/images/logo.jpg" alt="Logo" class="logo">
     <h1 th:text="${title}"></h1>
 
-    <div th:each="i : ${#numbers.sequence(T(java.lang.Math).floor(maxSemester) + 1, 8)}">
-        <h3 th:text="${i} + '학기'"></h3>
-        <div th:if="${recommendedCourses.containsKey(i + '학기')}">
-            <ul>
-                <li th:each="course : ${recommendedCourses.get(i + '학기')}">
-                    <span class="course-info">
-                            <span th:text="${course.courseName}"></span>
-                            <span th:if="${course.percentage > 0}" class="remark" th:text="'(' + ${#numbers.formatDecimal(course.percentage, 0, 2)} + '%, 총 ' + ${course.totalStudents} + '명 중 ' + ${course.countInMostFrequentSemester} + '명 수강)'"></span>
-                        </span>
-                    <span th:if="${not #strings.isEmpty(course.remark)}" class="remark" th:text="${course.remark}"></span>
-                </li>
-            </ul>
-        </div>
-        <div th:if="${!recommendedCourses.containsKey(i + '학기')}">
-            <p>데이터가 부족합니다.</p>
-        </div>
+    <!-- Major Course Recommendations -->
+    <h3>전공 과목 추천 (Top 5)</h3>
+    <div th:if="${recommendedCoursesMap.major.isEmpty()}">
+        <p>추천할 전공 과목이 없거나, 전공 과목을 모두 이수했습니다.</p>
+    </div>
+    <div th:if="${not recommendedCoursesMap.major.isEmpty()}">
+        <ul>
+            <li th:each="course : ${recommendedCoursesMap.major}">
+                <span class="course-info">
+                    <span th:text="${course.courseName} + ' (' + ${course.courseCode} + ')'"></span>
+                </span>
+                <span class="remark" th:text="'총 ' + ${course.totalStudentCount} + '명 수강'"></span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- GE Course Recommendations -->
+    <h3 style="margin-top: 40px;">교양 과목 추천 (Top 5)</h3>
+    <div th:if="${recommendedCoursesMap.ge.isEmpty()}">
+        <p>추천할 교양 과목이 없습니다.</p>
+    </div>
+    <div th:if="${not recommendedCoursesMap.ge.isEmpty()}">
+        <ul>
+            <li th:each="course : ${recommendedCoursesMap.ge}">
+                <span class="course-info">
+                    <span th:text="${course.courseName} + ' (' + ${course.courseCode} + ')'"></span>
+                </span>
+                <span class="remark" th:text="'총 ' + ${course.totalStudentCount} + '명 수강'"></span>
+            </li>
+        </ul>
     </div>
 
     

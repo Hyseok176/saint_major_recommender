@@ -36,7 +36,7 @@
 
         <div th:if="${not #maps.isEmpty(coursesBySemester)}">
             <div th:each="entry : ${coursesBySemester}">
-                <h3 th:text="${entry.key} + '학기'"></h3>
+                <h3 th:text="${entry.key % 1 == 0 ? #numbers.formatDecimal(entry.key, 1, 0) : #numbers.formatDecimal(entry.key, 1, 1)} + '학기'"></h3>
                 <ul>
                     <li th:each="course : ${entry.value}">
                         <span class="course-info">
