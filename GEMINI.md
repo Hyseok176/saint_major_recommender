@@ -1,3 +1,13 @@
+## 2025-08-10
+
+*   **UI/UX 개선 및 기능 추가**:
+    *   **공통 탐색 탭 추가**: `all-courses.html`, `recommend.html`, `results.html`, `upload-file.html` 등 모든 주요 페이지 상단에 '나의 수강이력', '과목 추천', '전체 과목', '파일 업로드'로 바로 이동할 수 있는 탐색 탭을 추가하여 사용자 편의성을 높였습니다.
+    *   **중복 버튼 제거**: 새로운 탐색 탭이 추가됨에 따라, 각 페이지 하단에 중복으로 존재하던 기능 버튼들을 제거하여 UI를 깔끔하게 정리했습니다.
+*   **오류 수정 및 안정성 강화**:
+    *   **회원가입 오류 수정**: 동일한 ID로 회원가입 시도 시 발생하던 `DataIntegrityViolationException` 오류를 해결했습니다. `CourseController`에 사용자 ID 중복 확인 로직을 추가하고, 중복 시 사용자에게 "이미 존재하는 사용자 ID입니다."라는 에러 메시지를 표시하도록 수정했습니다.
+    *   **컴파일 오류 수정**: `User.java` 파일에 `LocalDateTime`과 `CreationTimestamp` 클래스의 import 구문이 누락되어 발생하던 컴파일 오류를 수정했습니다.
+    *   **데이터베이스 스키마 오류 수정**: 기존 `users` 테이블에 `NOT NULL` 컬럼(`created_at`, `username`)을 추가할 때 기존 데이터 때문에 발생하던 `JdbcSQLIntegrityConstraintViolationException` 오류를 해결하기 위해, 사용자에게 데이터베이스 파일을 삭제하고 재시작하도록 안내했습니다.
+
 ## 2025-08-09
 
 *   **카카오 소셜 로그인 구현**:

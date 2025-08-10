@@ -25,6 +25,12 @@
 <body>
 <a th:href="@{/logout}" class="logout-button">Logout</a>
 <div class="container">
+        <div class="nav-bar" style="text-align: right; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
+            <a th:href="@{/results}" style="text-decoration: none; color: #555; margin: 0 10px; font-weight: bold;">나의 수강이력</a>
+            <a th:href="@{/recommend}" style="text-decoration: none; color: #555; margin: 0 10px; font-weight: bold;">과목 추천</a>
+            <a th:href="@{/all-courses}" style="text-decoration: none; color: #555; margin: 0 10px; font-weight: bold;">전체 과목</a>
+            <a th:href="@{/upload-form}" style="text-decoration: none; color: #555; margin: 0 10px; font-weight: bold;">파일 업로드</a>
+        </div>
     <img src="/images/logo.jpg" alt="Logo" class="logo">
     <h1 th:text="${title}"></h1>
 
@@ -46,10 +52,7 @@
         </div>
     </div>
 
-    <div class="button-container">
-        <a th:href="@{/results}" class="action-button">이전으로</a>
-        <a href="/all-courses" class="action-button">전체과목 보기</a>
-    </div>
+    
 </div>
 </body>
 </html>

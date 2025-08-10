@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -54,7 +55,12 @@ public class CourseController {
     public String registerUser(@RequestParam("username") String username,
                              @RequestParam("password") String password,
                              @RequestParam(value = "nickname", required = false) String nickname,
-                             @RequestParam(value = "email", required = false) String email) {
+                             @RequestParam(value = "email", required = false) String email,
+                             RedirectAttributes redirectAttributes) {
+        if (userRepository.findByUsername(username).isPresent()) {
+            redirectAttributes.addFlashAttribute("error", "이미 존재하는 사용자 ID입니다.");
+            return "redirect:/";
+        }
         User user = User.builder()
                 .username(username)
                 .nickname(nickname)
@@ -62,6 +68,7 @@ public class CourseController {
                 .password(passwordEncoder.encode(password))
                 .build();
         userRepository.save(user);
+        redirectAttributes.addFlashAttribute("message", "회원가입이 완료되었습니다. 로그인해주세요.");
         return "redirect:/";
     }
 

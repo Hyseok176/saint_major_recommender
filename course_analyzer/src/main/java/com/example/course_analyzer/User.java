@@ -1,5 +1,7 @@
 package com.example.course_analyzer;
 
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.LocalDateTime;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
