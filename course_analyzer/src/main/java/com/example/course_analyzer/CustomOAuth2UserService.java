@@ -48,15 +48,21 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     }
 
     private User saveOrUpdate(String username, String nickname, String email, String provider, String providerId) {
-        User user = userRepository.findByProviderAndProviderId(provider, providerId)
-                .map(entity -> entity.update(nickname))
-                .orElse(User.builder()
-                        .username(username)
-                        .nickname(nickname)
-                        .email(email)
-                        .provider(provider)
-                        .providerId(providerId)
-                        .build());
+        Optional<User> optionalUser = userRepository.findByProviderAndProviderId(provider, providerId);
+        User user;
+
+        if (optionalUser.isPresent()) {
+            user = optionalUser.get();
+            user.update(nickname); // Call the update method directly
+        } else {
+            user = User.builder()
+                    .username(username)
+                    .nickname(nickname)
+                    .email(email)
+                    .provider(provider)
+                    .providerId(providerId)
+                    .build();
+        }
 
         return userRepository.save(user);
     }

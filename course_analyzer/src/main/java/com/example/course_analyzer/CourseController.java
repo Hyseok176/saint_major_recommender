@@ -128,8 +128,10 @@ public class CourseController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
         Map<String, List<CourseStatDto>> recommendedCoursesMap = courseService.recommendCourses(user);
+        List<String> plannedCourseCodes = courseService.getPlanCourseCodes(user.getUsername());
         model.addAttribute("title", "과목 추천");
         model.addAttribute("recommendedCoursesMap", recommendedCoursesMap);
+        model.addAttribute("plannedCourseCodes", plannedCourseCodes);
         return "recommend";
     }
 
@@ -143,6 +145,9 @@ public class CourseController {
         if (user.getMajor2() != null && !user.getMajor2().isEmpty()) userMajors.add(user.getMajor2());
         if (user.getMajor3() != null && !user.getMajor3().isEmpty()) userMajors.add(user.getMajor3());
         model.addAttribute("userMajors", userMajors);
+
+        List<String> plannedCourseCodes = courseService.getPlanCourseCodes(user.getUsername());
+        model.addAttribute("plannedCourseCodes", plannedCourseCodes);
 
         if ("NonMajor".equals(major)) { // New condition for "비전공"
             List<CourseMapping> nonMajorCourseMappings = courseService.getNonMajorCourses(user);
@@ -210,6 +215,45 @@ public class CourseController {
             String username = authentication.getName();
             return userRepository.findByUsername(username)
                     .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+        }
+    }
+
+    @GetMapping("/semester-plan")
+    public String showSemesterPlan(Model model) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = getUserFromAuthentication(authentication);
+        List<CourseMapping> plannedCourses = courseService.getSemesterPlan(user.getUsername());
+        model.addAttribute("plannedCourses", plannedCourses);
+        return "semester-plan";
+    }
+
+    @PostMapping("/api/plan/add/{courseCode}")
+    public ResponseEntity<String> addCourseToPlan(@PathVariable String courseCode) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = getUserFromAuthentication(authentication);
+        try {
+            courseService.addCourseToPlan(user.getUsername(), courseCode);
+            return ResponseEntity.ok("Course added to plan successfully!");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error adding course to plan.");
+        }
+    }
+
+    @PostMapping("/api/plan/remove/{courseCode}")
+    public ResponseEntity<String> removeCourseFromPlan(@PathVariable String courseCode) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = getUserFromAuthentication(authentication);
+        try {
+            courseService.removeCourseFromPlan(user.getUsername(), courseCode);
+            return ResponseEntity.ok("Course removed from plan successfully!");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error removing course from plan.");
         }
     }
 }
