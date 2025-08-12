@@ -34,14 +34,14 @@ public class CourseService {
         user.setMajor2(major2.replace(" ", ""));
         user.setMajor3(major3.replace(" ", ""));
 
-        Map<String, Object> analysisResult = analyzeFile(file.getInputStream(), user.getUsername(), ipAddress);
-        List<Course> rawCourses = (List<Course>) analysisResult.get("rawCourses");
+        FileAnalysisResult analysisResult = analyzeFile(file.getInputStream(), user.getUsername(), ipAddress);
+        List<Course> rawCourses = analysisResult.getRawCourses();
         Map<String, List<Course>> coursesBySemester = groupAndFormatCourses(rawCourses);
 
         saveCoursesToDatabase(user, coursesBySemester);
     }
 
-    private Map<String, Object> analyzeFile(InputStream inputStream, String userId, String ipAddress) throws IOException {
+    private FileAnalysisResult analyzeFile(InputStream inputStream, String userId, String ipAddress) throws IOException {
         List<Course> rawCourses = new ArrayList<>();
         Map<String, String> majorInfo = new HashMap<>();
 
@@ -84,10 +84,7 @@ public class CourseService {
             }
         }
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("rawCourses", rawCourses);
-        result.put("majorInfo", majorInfo);
-        return result;
+        return new FileAnalysisResult(rawCourses, majorInfo);
     }
 
     public Map<String, List<Course>> groupAndFormatCourses(List<Course> rawCourses) {
