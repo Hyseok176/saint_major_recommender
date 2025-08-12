@@ -49,6 +49,43 @@
         .logo-nav {
             height: 40px;
         }
+        /* Cart Modal Styles */
+        #cart-modal {
+            display: block;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 400px;
+            max-height: 500px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transform: scale(0);
+            transform-origin: bottom right;
+            transition: transform 0.3s ease-in-out;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        #cart-modal.show {
+            transform: scale(1);
+        }
+        #cart-modal-header {
+            padding: 15px;
+            background: #f7f7f7;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #cart-modal-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+        #cart-modal-content {
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
@@ -64,7 +101,6 @@
                 <a th:href="@{/recommend}">과목 추천</a>
                 <a th:href="@{/all-courses}">전체 과목</a>
                 <a th:href="@{/upload-form}">파일 업로드</a>
-                <a th:href="@{/semester-plan}">다음 학기 구성</a>
             </div>
         </div>
 
@@ -85,5 +121,80 @@
 
         
     </div>
+
+<!-- Floating Cart Button -->
+<div id="cart-button" style="position: fixed; bottom: 20px; right: 20px; background-color: #A60026; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 24px;">
+    <span>🛒</span>
+</div>
+
+<!-- Cart Modal -->
+<div id="cart-modal">
+    <div id="cart-modal-header">
+        <h2>다음 학기 구성</h2>
+    </div>
+    <div id="cart-modal-content">
+        <div id="cart-items"></div>
+    </div>
+</div>
+
+<script>
+    const cartButton = document.getElementById('cart-button');
+    const cartModal = document.getElementById('cart-modal');
+
+    cartButton.onclick = function() {
+        if (cartModal.classList.contains('show')) {
+            cartModal.classList.remove('show');
+        } else {
+            fetchCartItems();
+            cartModal.classList.add('show');
+        }
+    }
+
+    function fetchCartItems() {
+        fetch('/api/plan')
+            .then(response => response.json())
+            .then(data => {
+                const cartItemsDiv = document.getElementById('cart-items');
+                cartItemsDiv.innerHTML = '';
+                if (data.length > 0) {
+                    const courseList = document.createElement('ul');
+                    courseList.style.listStyle = 'none';
+                    courseList.style.padding = '0';
+                    data.forEach(course => {
+                        const li = document.createElement('li');
+                        li.style.display = 'flex';
+                        li.style.justifyContent = 'space-between';
+                        li.style.padding = '8px 0';
+                        li.innerText = `${course.courseName} (${course.courseCode})`;
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.innerText = '삭제';
+                        deleteBtn.style.backgroundColor = '#dc3545';
+                        deleteBtn.style.color = 'white';
+                        deleteBtn.style.border = 'none';
+                        deleteBtn.style.padding = '5px 10px';
+                        deleteBtn.style.borderRadius = '4px';
+                        deleteBtn.style.cursor = 'pointer';
+                        deleteBtn.onclick = () => removeCourseFromCart(course.courseCode);
+                        li.appendChild(deleteBtn);
+                        courseList.appendChild(li);
+                    });
+                    cartItemsDiv.appendChild(courseList);
+                } else {
+                    cartItemsDiv.innerText = '아직 담은 과목이 없습니다.';
+                }
+            });
+    }
+
+    function removeCourseFromCart(courseCode) {
+        fetch(`/api/plan/remove/${courseCode}`, { method: 'POST' })
+            .then(response => {
+                if (response.ok) {
+                    fetchCartItems(); // Refresh the cart
+                } else {
+                    alert('과목 삭제 실패');
+                }
+            });
+    }
+</script>
 </body>
 </html>

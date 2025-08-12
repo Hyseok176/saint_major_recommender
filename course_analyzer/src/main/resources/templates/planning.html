@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>학기 계획</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 1000px; margin: auto; }
+        h1 { color: #333; text-align: center; margin-bottom: 30px; }
+        .plan-creator, .plans-list, .plan-details { margin-bottom: 30px; }
+        #plans-container { display: flex; gap: 20px; }
+        .plan-item { padding: 10px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; }
+        .plan-item.active { background-color: #A60026; color: white; }
+        .courses-list { list-style: none; padding: 0; }
+        .courses-list li { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>학기 계획</h1>
+
+    <div class="plan-creator">
+        <h2>새 학기 계획 생성</h2>
+        <input type="number" id="year-input" placeholder="년도 (e.g., 2025)" />
+        <input type="text" id="semester-input" placeholder="학기 (e.g., 1학기)" />
+        <button onclick="createPlan()">생성</button>
+    </div>
+
+    <div id="plans-container">
+        <div class="plans-list">
+            <h2>나의 계획</h2>
+            <div id="plans"></div>
+        </div>
+        <div class="plan-details">
+            <h2>계획 상세</h2>
+            <div id="selected-plan-details"></div>
+            <button onclick="openAddCourseModal()">과목 추가</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Course Modal -->
+<div id="add-course-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+    <div style="background:white; padding:20px; border-radius:5px; width:500px; margin:100px auto;">
+        <h2>과목 추가</h2>
+        <input type="text" id="course-search-input" placeholder="과목 코드로 검색" />
+        <button onclick="addCourse()">추가</button>
+        <button onclick="closeAddCourseModal()">닫기</button>
+    </div>
+</div>
+
+<script>
+    let currentPlanId = null;
+
+    function fetchPlans() {
+        fetch('/api/plans')
+            .then(response => response.json())
+            .then(data => {
+                const plansDiv = document.getElementById('plans');
+                plansDiv.innerHTML = '';
+                data.forEach(plan => {
+                    const planDiv = document.createElement('div');
+                    planDiv.className = 'plan-item';
+                    planDiv.innerText = `${plan.year}년 ${plan.semester}`;
+                    planDiv.onclick = () => selectPlan(plan.id);
+                    plansDiv.appendChild(planDiv);
+                });
+            });
+    }
+
+    function createPlan() {
+        const year = document.getElementById('year-input').value;
+        const semester = document.getElementById('semester-input').value;
+        fetch('/api/plans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ year, semester })
+        }).then(() => fetchPlans());
+    }
+
+    function selectPlan(planId) {
+        currentPlanId = planId;
+        fetch(`/api/plans`)
+            .then(response => response.json())
+            .then(plans => {
+                const plan = plans.find(p => p.id === planId);
+                const detailsDiv = document.getElementById('selected-plan-details');
+                detailsDiv.innerHTML = `<h3>${plan.year}년 ${plan.semester}</h3>`;
+                const courseList = document.createElement('ul');
+                courseList.className = 'courses-list';
+                plan.plannedCourses.forEach(course => {
+                    const li = document.createElement('li');
+                    li.innerText = `${course.courseName} (${course.courseCode})`;
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerText = '삭제';
+                    deleteBtn.onclick = () => removeCourse(course.id);
+                    li.appendChild(deleteBtn);
+                    courseList.appendChild(li);
+                });
+                detailsDiv.appendChild(courseList);
+            });
+    }
+
+    function removeCourse(plannedCourseId) {
+        fetch(`/api/plans/courses/${plannedCourseId}`, { method: 'DELETE' })
+            .then(() => selectPlan(currentPlanId));
+    }
+
+    function openAddCourseModal() {
+        document.getElementById('add-course-modal').style.display = 'block';
+    }
+
+    function closeAddCourseModal() {
+        document.getElementById('add-course-modal').style.display = 'none';
+    }
+
+    function addCourse() {
+        const courseCode = document.getElementById('course-search-input').value;
+        fetch(`/api/plans/${currentPlanId}/courses`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseCode })
+        }).then(() => {
+            selectPlan(currentPlanId);
+            closeAddCourseModal();
+        });
+    }
+
+    fetchPlans();
+</script>
+</body>
+</html>
