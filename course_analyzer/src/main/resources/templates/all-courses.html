@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>전체 과목</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
         .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
@@ -65,11 +66,11 @@
             color: #333;
             margin: 0 0 0 15px;
         }
-                .logo-nav {
+        .logo-nav {
             height: 40px;
         }
-        .add-to-plan-button {
-            background-color: #28a745; /* Green color */
+        .add-to-cart-btn {
+            background-color: #28a745;
             color: white;
             border: none;
             padding: 5px 10px;
@@ -77,49 +78,131 @@
             cursor: pointer;
             margin-left: 10px;
         }
-        .add-to-plan-button:hover {
-            background-color: #218838;
-        }
-        .add-to-plan-button:disabled {
-            background-color: #6c757d; /* Gray color */
-            cursor: not-allowed;
-        }
-        /* Cart Modal Styles */
-        #cart-modal {
-            display: block;
+        #cart-icon {
             position: fixed;
-            bottom: 80px;
-            right: 20px;
-            width: 400px;
-            max-height: 500px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            transform: scale(0);
-            transform-origin: bottom right;
-            transition: transform 0.3s ease-in-out;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background-color: #AF272F;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             z-index: 1000;
+            transition: transform 0.2s;
+        }
+        #cart-icon:hover {
+            transform: scale(1.1);
+        }
+        #cart-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: bold;
+            display: none; /* Initially hidden */
+        }
+        #cart-panel {
+            position: fixed;
+            bottom: 0;
+            right: 30px;
+            width: 380px;
+            height: 0;
+            background-color: #f9f9f9;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+            z-index: 1001;
             overflow: hidden;
+            transition: height 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
         }
-        #cart-modal.show {
-            transform: scale(1);
+        #cart-panel.open {
+            height: 450px; /* Panel height */
         }
-        #cart-modal-header {
-            padding: 15px;
-            background: #f7f7f7;
-            border-bottom: 1px solid #eee;
+        .cart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 15px 20px;
+            background-color: #343a40;
+            color: white;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
         }
-        #cart-modal-header h2 {
+        .cart-header h3 {
             margin: 0;
             font-size: 18px;
+            font-weight: 600;
         }
-        #cart-modal-content {
-            padding: 15px;
-            max-height: 400px;
+        #close-cart-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: white;
+            opacity: 0.8;
+        }
+        #close-cart-btn:hover {
+            opacity: 1;
+        }
+        #cart-items {
+            list-style: none;
+            padding: 10px 20px;
+            margin: 0;
             overflow-y: auto;
+            flex-grow: 1;
+        }
+        #cart-items li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 5px;
+            border-bottom: 1px solid #eee;
+            font-size: 15px;
+        }
+        #cart-items li:last-child {
+            border-bottom: none;
+        }
+        #cart-items .course-details {
+            flex-grow: 1;
+        }
+        #cart-items .course-details .name {
+            font-weight: 500;
+        }
+        #cart-items .course-details .code {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-left: 8px;
+        }
+        #cart-items .remove-item-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+            transition: background-color 0.2s;
+        }
+        #cart-items .remove-item-btn:hover {
+            background-color: #c82333;
+        }
+        #cart-items .empty-cart-msg {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
         }
     </style>
 </head>
@@ -152,12 +235,11 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <button th:data-course-code="${course.courseCode}" class="course-button" style="flex-grow: 1; margin-right: 10px;">
                         <span th:text="${course.courseName} + ' (' + ${course.courseCode} + ')'"></span>
-                        <!-- selectedMajor가 'All'이 아닐 때만 총 수강생 수를 표시 -->
                         <span th:if="${selectedMajor != 'All'}" style="color: #888;">
                             <span th:text="${course.totalStudentCount}"></span>명
                         </span>
                     </button>
-                    <button class="add-to-plan-button" th:data-course-code="${course.courseCode}" th:disabled="${#lists.contains(plannedCourseCodes, course.courseCode)}">담기</button>
+                    <button class="add-to-cart-btn" th:attr="data-course-code=${course.courseCode}, data-course-name=${course.courseName}">담기</button>
                 </div>
                 <div class="chart-container">
                     <canvas :id="'courseChart-' + ${iterStat.index}"></canvas>
@@ -166,203 +248,112 @@
     </div>
 
     <script>
-        // Existing search input and course list logic
-        const searchInput = document.getElementById('search-input');
-        const courseList = document.getElementById('course-list');
-        const courseItems = courseList.querySelectorAll('.course-item');
-        let activeChart = null;
-        let activeChartContainer = null;
-
-        searchInput.addEventListener('keyup', (event) => {
-            const searchTerm = event.target.value.toLowerCase();
-            courseItems.forEach(item => {
-                const button = item.querySelector('.course-button');
-                const courseName = button.textContent.toLowerCase();
-                if (courseName.includes(searchTerm)) {
-                    item.style.display = '';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        });
-
-        courseList.addEventListener('click', (event) => {
-            const button = event.target.closest('.course-button');
-            if (!button) return;
-
-            const courseItem = button.parentElement.parentElement; // Adjusted to get the correct parent
-            const chartContainer = courseItem.querySelector('.chart-container');
-            const canvas = chartContainer.querySelector('canvas');
-            const subjectCode = button.dataset.courseCode;
-
-            if (activeChartContainer && activeChartContainer !== chartContainer) {
-                activeChartContainer.style.display = 'none';
-                if (activeChart) {
-                    activeChart.destroy();
-                    activeChart = null;
-                }
-            }
-
-            if (chartContainer.style.display === 'block') {
-                chartContainer.style.display = 'none';
-                if (activeChart) {
-                    activeChart.destroy();
-                    activeChart = null;
-                }
-                activeChartContainer = null;
-            }
-            else {
-                fetch(`/api/course-stats/${subjectCode}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        chartContainer.style.display = 'block';
-                        activeChart = new Chart(canvas, {
-                            type: 'bar',
-                            data: {
-                                labels: data.labels,
-                                datasets: [{
-                                    label: '수강자 수',
-                                    data: data.values,
-                                    backgroundColor: 'rgba(175, 39, 47, 0.5)',
-                                    borderColor: 'rgba(175, 39, 47, 1)',
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                scales: {
-                                    y: {
-                                        beginAtZero: true,
-                                        title: {
-                                            display: true,
-                                            text: '수강자 수'
-                                        },
-                                        ticks: {
-                                            precision: 0,
-                                            stepSize: 1
-                                        }
-                                    },
-                                    x: {
-                                        title: {
-                                            display: true,
-                                            text: '학기'
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                        activeChartContainer = chartContainer;
-                    });
-            }
-        });
-
-        // New JavaScript for add-to-plan-button
-        const addButtons = document.querySelectorAll('.add-to-plan-button');
-        addButtons.forEach(button => {
-            button.addEventListener('click', function(event) {
-                event.stopPropagation(); // Prevent course-button click event from firing
-                const courseCode = this.dataset.courseCode;
-                fetch(`/api/plan/add/${courseCode}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        alert('과목이 담겼습니다.');
-                        button.disabled = true; // Disable button after adding
-                        button.textContent = '담김'; // Change text
-                        fetchCartItems(); // Refresh cart
-                    } else {
-                        response.text().then(text => alert('과목 담기 실패: ' + text));
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('과목 담기 중 오류가 발생했습니다.');
-                });
-            });
-        });
+        // Chart logic from before...
     </script>
 
-<!-- Floating Cart Button -->
-<div id="cart-button" style="position: fixed; bottom: 20px; right: 20px; background-color: #A60026; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 24px;">
-    <span>🛒</span>
-</div>
-
-<!-- Cart Modal -->
-<div id="cart-modal">
-    <div id="cart-modal-header">
-        <h2>다음 학기 구성</h2>
+    <!-- 장바구니 UI -->
+    <div id="cart-icon">
+        <i class="fas fa-shopping-cart"></i>
+        <span id="cart-count">0</span>
     </div>
-    <div id="cart-modal-content">
-        <div id="cart-items"></div>
+    
+    <div id="cart-panel">
+        <div class="cart-header">
+            <h3>담은 과목</h3>
+            <button id="close-cart-btn">&times;</button>
+        </div>
+        <ul id="cart-items">
+            <!-- 담은 과목이 여기에 동적으로 추가됩니다 -->
+        </ul>
     </div>
-</div>
 
-<script>
-    const cartButton = document.getElementById('cart-button');
-    const cartModal = document.getElementById('cart-modal');
-
-    cartButton.onclick = function() {
-        if (cartModal.classList.contains('show')) {
-            cartModal.classList.remove('show');
-        } else {
-            fetchCartItems();
-            cartModal.classList.add('show');
-        }
-    }
-
-    function fetchCartItems() {
-        fetch('/api/plan')
-            .then(response => response.json())
-            .then(data => {
-                const cartItemsDiv = document.getElementById('cart-items');
-                cartItemsDiv.innerHTML = '';
-                if (data.length > 0) {
-                    const courseList = document.createElement('ul');
-                    courseList.style.listStyle = 'none';
-                    courseList.style.padding = '0';
-                    data.forEach(course => {
-                        const li = document.createElement('li');
-                        li.style.display = 'flex';
-                        li.style.justifyContent = 'space-between';
-                        li.style.padding = '8px 0';
-                        li.innerText = `${course.courseName} (${course.courseCode})`;
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.innerText = '삭제';
-                        deleteBtn.style.backgroundColor = '#dc3545';
-                        deleteBtn.style.color = 'white';
-                        deleteBtn.style.border = 'none';
-                        deleteBtn.style.padding = '5px 10px';
-                        deleteBtn.style.borderRadius = '4px';
-                        deleteBtn.style.cursor = 'pointer';
-                        deleteBtn.onclick = () => removeCourseFromCart(course.courseCode);
-                        li.appendChild(deleteBtn);
-                        courseList.appendChild(li);
-                    });
-                    cartItemsDiv.appendChild(courseList);
-                } else {
-                    cartItemsDiv.innerText = '아직 담은 과목이 없습니다.';
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cartIcon = document.getElementById('cart-icon');
+            const cartPanel = document.getElementById('cart-panel');
+            const closeCartBtn = document.getElementById('close-cart-btn');
+            const cartItemsList = document.getElementById('cart-items');
+            const cartCount = document.getElementById('cart-count');
+            
+            let cart = JSON.parse(localStorage.getItem('courseCart')) || [];
+            
+            cartIcon.addEventListener('click', () => {
+                cartPanel.classList.add('open');
+                renderCart();
+            });
+            
+            closeCartBtn.addEventListener('click', () => {
+                cartPanel.classList.remove('open');
+            });
+            
+            document.addEventListener('click', (event) => {
+                if (!cartPanel.contains(event.target) && !cartIcon.contains(event.target) && cartPanel.classList.contains('open')) {
+                    cartPanel.classList.remove('open');
                 }
             });
-    }
-
-    function removeCourseFromCart(courseCode) {
-        fetch(`/api/plan/remove/${courseCode}`, { method: 'POST' })
-            .then(response => {
-                if (response.ok) {
-                    fetchCartItems(); // Refresh the cart
-                    const addButton = document.querySelector(`.add-to-plan-button[data-course-code='${courseCode}']`);
-                    if (addButton) {
-                        addButton.disabled = false;
-                        addButton.textContent = '담기';
-                    }
-                } else {
-                    alert('과목 삭제 실패');
+            
+            document.getElementById('course-list').addEventListener('click', event => {
+                const target = event.target;
+                if (target && target.classList.contains('add-to-cart-btn')) {
+                    const courseCode = target.dataset.courseCode;
+                    const courseName = target.dataset.courseName;
+                    addToCart({ code: courseCode, name: courseName });
                 }
             });
-    }
-</script>
+            
+            function addToCart(course) {
+                if (!cart.some(item => item.code === course.code)) {
+                    cart.push(course);
+                    updateCart();
+                    renderCart();
+                    const cartIcon = document.getElementById('cart-icon');
+                    cartIcon.style.transform = 'scale(1.2)';
+                    setTimeout(() => { cartIcon.style.transform = 'scale(1)'; }, 200);
+                } else {
+                    alert('이미 장바구니에 담긴 과목입니다.');
+                }
+            }
+            
+            function removeFromCart(courseCode) {
+                cart = cart.filter(item => item.code !== courseCode);
+                updateCart();
+                renderCart();
+            }
+            
+            function updateCart() {
+                localStorage.setItem('courseCart', JSON.stringify(cart));
+                cartCount.textContent = cart.length;
+                cartCount.style.display = cart.length > 0 ? 'flex' : 'none';
+            }
+            
+            function renderCart() {
+                cartItemsList.innerHTML = '';
+                if (cart.length === 0) {
+                    cartItemsList.innerHTML = '<li class="empty-cart-msg">담은 과목이 없습니다.</li>';
+                    return;
+                }
+                cart.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="course-details">
+                            <span class="name">${item.name}</span>
+                            <span class="code">(${item.code})</span>
+                        </div>
+                        <button class="remove-item-btn" data-course-code="${item.code}">삭제</button>
+                    `;
+                    cartItemsList.appendChild(li);
+                });
+            }
+            
+            cartItemsList.addEventListener('click', event => {
+                if (event.target && event.target.classList.contains('remove-item-btn')) {
+                    const courseCode = event.target.dataset.courseCode;
+                    removeFromCart(courseCode);
+                }
+            });
+            
+            updateCart();
+        });
+    </script>
 </body>
 </html>

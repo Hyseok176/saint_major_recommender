@@ -304,54 +304,5 @@ public class CourseService {
         }
     }
 
-    @Autowired
-    private SemesterPlanCourseRepository semesterPlanCourseRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Transactional
-    public void addCourseToPlan(String username, String courseCode) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        CourseMapping courseMapping = courseMappingRepository.findById(courseCode)
-                .orElseThrow(() -> new IllegalArgumentException("Course not found: " + courseCode));
-
-        if (semesterPlanCourseRepository.findByUserAndCourseMapping(user, courseMapping).isPresent()) {
-            throw new IllegalStateException("Course already in plan");
-        }
-
-        SemesterPlanCourse semesterPlanCourse = new SemesterPlanCourse(user, courseMapping);
-        semesterPlanCourseRepository.save(semesterPlanCourse);
-    }
-
-    @Transactional
-    public void removeCourseFromPlan(String username, String courseCode) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        CourseMapping courseMapping = courseMappingRepository.findById(courseCode)
-                .orElseThrow(() -> new IllegalArgumentException("Course not found: " + courseCode));
-
-        semesterPlanCourseRepository.deleteByUserAndCourseMapping(user, courseMapping);
-    }
-
-    public List<CourseMapping> getSemesterPlan(String username) {
-        System.out.println("Fetching semester plan for username: " + username);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        List<SemesterPlanCourse> planCourses = semesterPlanCourseRepository.findByUser(user);
-        System.out.println("Found " + planCourses.size() + " planned courses for user: " + username);
-        return planCourses.stream()
-                .map(SemesterPlanCourse::getCourseMapping)
-                .collect(Collectors.toList());
-    }
-
-    public List<String> getPlanCourseCodes(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        List<SemesterPlanCourse> planCourses = semesterPlanCourseRepository.findByUser(user);
-        return planCourses.stream()
-                .map(plan -> plan.getCourseMapping().getCourseCode())
-                .collect(Collectors.toList());
-    }
+    
 }
