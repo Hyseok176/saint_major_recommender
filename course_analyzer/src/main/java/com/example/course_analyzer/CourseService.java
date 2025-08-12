@@ -256,7 +256,7 @@ public class CourseService {
                             semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
                     ))
                     .sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed())
-                    .limit(5)
+                    
                     .collect(Collectors.toList());
         }
 
@@ -271,7 +271,7 @@ public class CourseService {
                         semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
                 ))
                 .sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed())
-                .limit(5)
+                
                 .collect(Collectors.toList());
 
         // 5. Combine into a map
