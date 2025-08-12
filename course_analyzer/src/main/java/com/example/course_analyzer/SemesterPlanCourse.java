@@ -26,7 +26,7 @@ public class SemesterPlanCourse {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_mapping_id", nullable = false)
+    @JoinColumn(name = "course_mapping_course_code", referencedColumnName = "courseCode", nullable = false)
     private CourseMapping courseMapping;
 
     @CreationTimestamp

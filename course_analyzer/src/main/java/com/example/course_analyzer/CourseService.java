@@ -336,9 +336,11 @@ public class CourseService {
     }
 
     public List<CourseMapping> getSemesterPlan(String username) {
+        System.out.println("Fetching semester plan for username: " + username);
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
         List<SemesterPlanCourse> planCourses = semesterPlanCourseRepository.findByUser(user);
+        System.out.println("Found " + planCourses.size() + " planned courses for user: " + username);
         return planCourses.stream()
                 .map(SemesterPlanCourse::getCourseMapping)
                 .collect(Collectors.toList());

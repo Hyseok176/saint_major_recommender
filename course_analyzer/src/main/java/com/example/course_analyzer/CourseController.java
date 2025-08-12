@@ -127,8 +127,11 @@ public class CourseController {
     public String recommend(Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
+        System.out.println("Generating recommendations for user: " + user.getUsername());
         Map<String, List<CourseStatDto>> recommendedCoursesMap = courseService.recommendCourses(user);
+        System.out.println("Recommended courses map: " + recommendedCoursesMap);
         List<String> plannedCourseCodes = courseService.getPlanCourseCodes(user.getUsername());
+        System.out.println("Planned course codes: " + plannedCourseCodes);
         model.addAttribute("title", "과목 추천");
         model.addAttribute("recommendedCoursesMap", recommendedCoursesMap);
         model.addAttribute("plannedCourseCodes", plannedCourseCodes);
