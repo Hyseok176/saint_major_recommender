@@ -48,7 +48,7 @@
             <a th:href="@{/upload-form}">파일 업로드</a>
         </div>
         <img src="/images/logo.jpg" alt="Logo" class="logo">
-        <h1>수강기록</h1>
+        <h1>나의 수강이력</h1>
 
         <div th:if="${not #maps.isEmpty(coursesBySemester)}">
             <div th:each="entry : ${coursesBySemester}">
