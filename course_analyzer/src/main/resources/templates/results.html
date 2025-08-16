@@ -368,6 +368,7 @@
             }
             
             cartItemsList.addEventListener('click', event => {
+                event.stopPropagation();
                 if (event.target && event.target.classList.contains('remove-item-btn')) {
                     const courseCode = event.target.dataset.courseCode;
                     removeFromCart(courseCode);
