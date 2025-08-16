@@ -233,7 +233,7 @@ public class CourseService {
         return (int) Math.ceil(maxSemester.orElse(1.0));
     }
 
-    public Map<String, List<RecommendedCourseDto>> recommendCourses(User user, List<String> cartCourseCodes) {
+    public Map<String, List<RecommendedCourseDto>> recommendCourses(User user, List<String> cartCourseCodes, List<String> dismissedCourseCodes) {
         int currentUserSemester = getCurrentSemester(user);
 
         List<String> userMajorPrefixes = new ArrayList<>();
@@ -259,6 +259,7 @@ public class CourseService {
                     .filter(course -> userMajorPrefixes.stream().anyMatch(prefix -> !prefix.isEmpty() && course.getCourseCode().startsWith(prefix)))
                     .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
                     .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
+                    .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
                     .map(course -> {
                         List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
                         double score = allTakes.stream()
@@ -278,6 +279,7 @@ public class CourseService {
                 .filter(course -> allMajorPrefixes.stream().noneMatch(prefix -> course.getCourseCode().startsWith(prefix)))
                 .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
                 .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
+                .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
                 .map(course -> {
                     List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
                     double score = allTakes.stream()

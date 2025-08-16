@@ -100,6 +100,12 @@ public class CourseController {
 
         List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
 
+        // Extract taken course codes for the "retake" feature
+        List<String> takenCourseCodes = savedCourses.stream()
+                .map(SemesterCourse::getCourseCode)
+                .collect(Collectors.toList());
+        model.addAttribute("takenCourseCodes", takenCourseCodes);
+
         // Use TreeMap to sort by semester number automatically
         Map<Double, List<Course>> coursesBySemesterNumber = savedCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
@@ -150,16 +156,14 @@ public class CourseController {
     }
 
     @PostMapping("/recommend")
-    public String recommend(@RequestBody(required = false) List<String> cartCourseCodes, Model model) {
+    public String recommend(@RequestBody RecommendationRequestDto requestDto, Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
         
-        List<String> finalCartCourseCodes = cartCourseCodes == null ? new ArrayList<>() : cartCourseCodes;
+        List<String> cartCourseCodes = requestDto.getCartCourseCodes() == null ? new ArrayList<>() : requestDto.getCartCourseCodes();
+        List<String> dismissedCourseCodes = requestDto.getDismissedCourseCodes() == null ? new ArrayList<>() : requestDto.getDismissedCourseCodes();
 
-        System.out.println("Generating recommendations for user: " + user.getUsername());
-        System.out.println("Cart courses: " + finalCartCourseCodes);
-
-        Map<String, List<RecommendedCourseDto>> recommendedCoursesMap = courseService.recommendCourses(user, finalCartCourseCodes);
+        Map<String, List<RecommendedCourseDto>> recommendedCoursesMap = courseService.recommendCourses(user, cartCourseCodes, dismissedCourseCodes);
         
         model.addAttribute("title", "과목 추천");
         model.addAttribute("recommendedCoursesMap", recommendedCoursesMap);

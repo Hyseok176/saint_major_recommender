@@ -20,6 +20,16 @@
             margin-left: 10px;
             cursor: pointer;
         }
+        .dismiss-btn {
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0 5px;
+            margin-left: 5px;
+        }
+        .dismiss-btn:hover { color: #dc3545; }
         .button-container { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
         .action-button { display: block; width: 150px; padding: 10px; text-align: center; background-color: #AF272F; color: white; text-decoration: none; border-radius: 4px; }
         .action-button:hover { background-color: #9e232b; }
@@ -230,6 +240,7 @@
                                   '평균 학기 근접도: ' + ${#numbers.formatDecimal(rec.averageProximityScore, 1, 2)}">
                     </i>
                     <button class="add-to-cart-btn" th:attr="data-course-code=${rec.course.courseCode}, data-course-name=${rec.course.courseName}">담기</button>
+                    <button class="dismiss-btn" th:attr="data-course-code=${rec.course.courseCode}">&times;</button>
                 </li>
             </ul>
         </div>
@@ -254,6 +265,7 @@
                                   '평균 학기 근접도: ' + ${#numbers.formatDecimal(rec.averageProximityScore, 1, 2)}">
                     </i>
                     <button class="add-to-cart-btn" th:attr="data-course-code=${rec.course.courseCode}, data-course-name=${rec.course.courseName}">담기</button>
+                    <button class="dismiss-btn" th:attr="data-course-code=${rec.course.courseCode}">&times;</button>
                 </li>
             </ul>
         </div>
@@ -281,7 +293,6 @@
     <script th:inline="javascript">
         /*<![CDATA[*/
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
               return new bootstrap.Tooltip(tooltipTriggerEl)
@@ -295,22 +306,22 @@
             const recommendationResults = document.getElementById('recommendation-results');
             
             let cart = JSON.parse(localStorage.getItem('courseCart')) || [];
+            let dismissedCourses = [];
             
-            // Function to fetch recommendations
             function fetchRecommendations() {
-                const cartCourseCodes = cart.map(item => item.code);
+                const payload = {
+                    cartCourseCodes: cart.map(item => item.code),
+                    dismissedCourseCodes: dismissedCourses
+                };
 
                 fetch('/recommend', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(cartCourseCodes)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 })
                 .then(response => response.text())
                 .then(html => {
                     recommendationResults.innerHTML = html;
-                    // Re-initialize tooltips after new content is loaded
                     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
                     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                       return new bootstrap.Tooltip(tooltipTriggerEl)
@@ -319,7 +330,6 @@
                 .catch(error => console.error('Error fetching recommendations:', error));
             }
 
-            // Initial fetch
             fetchRecommendations();
             
             cartIcon.addEventListener('click', () => {
@@ -330,13 +340,26 @@
             closeCartBtn.addEventListener('click', () => {
                 cartPanel.classList.remove('open');
             });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && cartPanel.classList.contains('open')) {
+                    cartPanel.classList.remove('open');
+                }
+            });
             
-            document.querySelector('.container').addEventListener('click', event => {
+            recommendationResults.addEventListener('click', event => {
                 const target = event.target;
                 if (target && target.classList.contains('add-to-cart-btn')) {
                     const courseCode = target.dataset.courseCode;
                     const courseName = target.dataset.courseName;
                     addToCart({ code: courseCode, name: courseName });
+                }
+                if (target && target.classList.contains('dismiss-btn')) {
+                    const courseCode = target.dataset.courseCode;
+                    if (!dismissedCourses.includes(courseCode)) {
+                        dismissedCourses.push(courseCode);
+                        fetchRecommendations();
+                    }
                 }
             });
             
@@ -349,7 +372,7 @@
                     cart.push(course);
                     updateCart();
                     renderCart();
-                    fetchRecommendations(); // Re-fetch recommendations
+                    fetchRecommendations();
                     const cartIcon = document.getElementById('cart-icon');
                     cartIcon.style.transform = 'scale(1.2)';
                     setTimeout(() => { cartIcon.style.transform = 'scale(1)'; }, 200);
@@ -362,7 +385,7 @@
                 cart = cart.filter(item => item.code !== courseCode);
                 updateCart();
                 renderCart();
-                fetchRecommendations(); // Re-fetch recommendations
+                fetchRecommendations();
             }
             
             function updateCart() {

@@ -13,7 +13,18 @@
         .course-item { margin-bottom: 10px; }
         .course-button { width: 100%; padding: 15px; background-color: #e9ecef; border: none; border-radius: 4px; text-align: left; cursor: pointer; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
         .course-button:hover { background-color: #dcdcdc; }
-        .chart-container { display: none; padding: 20px 0; max-height: 300px; }
+        .chart-container { 
+            display: none; 
+            padding: 20px 0; 
+            max-height: 300px; 
+            align-items: center;
+            gap: 15px;
+        }
+        .chart-wrapper {
+            flex-grow: 1;
+            position: relative;
+            height: 250px;
+        }
         .button-container { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
         .action-button { display: block; width: 150px; padding: 10px; text-align: center; background-color: #AF272F; color: white; text-decoration: none; border-radius: 4px; }
         .action-button:hover { background-color: #9e232b; }
@@ -77,6 +88,7 @@
             border-radius: 4px;
             cursor: pointer;
             margin-left: 10px;
+            flex-shrink: 0;
         }
         #cart-icon {
             position: fixed;
@@ -212,7 +224,7 @@
         <div class="nav-bar">
             <div class="logo-title-container">
                 <img src="/images/small.png" alt="Logo" class="logo-nav">
-                <h1 class="page-title" th:text="${selectedMajor.equals('All')} ? '전체 과목' : ${selectedMajor} + ' 과목'"></h1>
+                <h1 class="page-title" th:text="${selectedMajor.equals('All')} ? '전체 과목' : (${selectedMajor.equals('NonMajor') ? '비전공' : selectedMajor}) + ' 과목'"></h1>
             </div>
             <div class="nav-links">
                 <a th:href="@{/results}">나의 수강이력</a>
@@ -232,24 +244,21 @@
         <input type="text" id="search-input" placeholder="과목명으로 검색...">
         <div id="course-list">
             <div th:each="course, iterStat : ${courses}" class="course-item">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <button th:data-course-code="${course.courseCode}" class="course-button" style="flex-grow: 1; margin-right: 10px;">
-                        <span th:text="${course.courseName} + ' (' + ${course.courseCode} + ')'"></span>
-                        <span th:if="${selectedMajor != 'All'}" style="color: #888;">
-                            <span th:text="${course.totalStudentCount}"></span>명
-                        </span>
-                    </button>
+                <button th:data-course-code="${course.courseCode}" class="course-button">
+                    <span th:text="${course.courseName} + ' (' + ${course.courseCode} + ')'"></span>
+                    <span style="color: #888; flex-shrink: 0;">
+                        <span th:text="${course.totalStudentCount}"></span>명
+                    </span>
+                </button>
+                <div class="chart-container">
+                    <div class="chart-wrapper">
+                        <canvas th:id="'courseChart-' + ${iterStat.index}"></canvas>
+                    </div>
                     <button class="add-to-cart-btn" th:attr="data-course-code=${course.courseCode}, data-course-name=${course.courseName}">담기</button>
                 </div>
-                <div class="chart-container">
-                    <canvas :id="'courseChart-' + ${iterStat.index}"></canvas>
-                </div>
             </div>
+        </div>
     </div>
-
-    <script>
-        // Chart logic from before...
-    </script>
 
     <!-- 장바구니 UI -->
     <div id="cart-icon">
@@ -269,6 +278,70 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Chart and Search Logic
+            const courseButtons = document.querySelectorAll('.course-button');
+            const charts = new Map();
+            courseButtons.forEach((button, index) => {
+                button.addEventListener('click', function() {
+                    const chartContainer = this.nextElementSibling;
+                    const courseCode = this.dataset.courseCode;
+                    const canvasId = 'courseChart-' + index;
+
+                    if (chartContainer.style.display === 'flex') {
+                        chartContainer.style.display = 'none';
+                    } else {
+                        chartContainer.style.display = 'flex';
+                        if (!charts.has(canvasId)) {
+                            fetch(`/api/course-stats/${courseCode}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    const ctx = document.getElementById(canvasId).getContext('2d');
+                                    charts.set(canvasId, new Chart(ctx, {
+                                        type: 'bar',
+                                        data: {
+                                            labels: data.labels,
+                                            datasets: [{
+                                                label: '학기별 수강자 수',
+                                                data: data.values,
+                                                backgroundColor: 'rgba(175, 39, 47, 0.6)',
+                                                borderColor: 'rgba(175, 39, 47, 1)',
+                                                borderWidth: 1
+                                            }]
+                                        },
+                                        options: {
+                                            responsive: true,
+                                            maintainAspectRatio: false,
+                                            scales: {
+                                                y: {
+                                                    beginAtZero: true,
+                                                    ticks: {
+                                                        stepSize: 1
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }));
+                                });
+                        }
+                    }
+                });
+            });
+
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('keyup', function() {
+                const filter = searchInput.value.toLowerCase();
+                document.querySelectorAll('.course-item').forEach(item => {
+                    const button = item.querySelector('.course-button');
+                    const courseName = button.textContent.toLowerCase();
+                    if (courseName.includes(filter)) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+
+            // Cart functionality
             const cartIcon = document.getElementById('cart-icon');
             const cartPanel = document.getElementById('cart-panel');
             const closeCartBtn = document.getElementById('close-cart-btn');
@@ -285,9 +358,9 @@
             closeCartBtn.addEventListener('click', () => {
                 cartPanel.classList.remove('open');
             });
-            
-            document.addEventListener('click', (event) => {
-                if (!cartPanel.contains(event.target) && !cartIcon.contains(event.target) && cartPanel.classList.contains('open')) {
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && cartPanel.classList.contains('open')) {
                     cartPanel.classList.remove('open');
                 }
             });
@@ -303,11 +376,7 @@
             
             function addToCart(course) {
                 if (cart.length >= 8) {
-<<<<<<< HEAD
                     alert('장바구니에는 최대 8과목까지 담을 수 있습니다.');
-=======
-                    alert('장바구니에는 최대 8과목까지 담을 수 있습니다.');
->>>>>>> b260020921c9cde3579e9360232b197d70db1265
                     return;
                 }
                 if (!cart.some(item => item.code === course.code)) {
@@ -354,7 +423,6 @@
             }
             
             cartItemsList.addEventListener('click', event => {
-                event.stopPropagation();
                 if (event.target && event.target.classList.contains('remove-item-btn')) {
                     const courseCode = event.target.dataset.courseCode;
                     removeFromCart(courseCode);

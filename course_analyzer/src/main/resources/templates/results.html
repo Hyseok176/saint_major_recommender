@@ -24,6 +24,7 @@
         li.cart-item { background-color: #d1e7dd; } /* Light green for cart items */
         .course-info { flex-grow: 1; }
         .remark { font-size: 0.8em; color: #666; margin-left: 10px; }
+        .remark.retake { color: #dc3545; font-weight: bold; }
         .button-container { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
         .action-button { display: block; width: 150px; padding: 10px; text-align: center; background-color: #AF272F; color: white; text-decoration: none; border-radius: 4px; }
         .action-button:hover { background-color: #9e232b; }
@@ -256,6 +257,11 @@
         </ul>
     </div>
 
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const takenCourseCodes = /*[[${takenCourseCodes}]]*/ [];
+        /*]]>*/
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Semester toggle functionality
@@ -286,7 +292,6 @@
             
             let cart = JSON.parse(localStorage.getItem('courseCart')) || [];
             
-            // Function to populate cart items into the next semester
             function populateCartInTranscript() {
                 const cartSemesterDiv = document.querySelector('.cart-semester-list');
                 if (!cartSemesterDiv) return;
@@ -294,33 +299,31 @@
                 const cartSemesterUl = cartSemesterDiv.querySelector('ul');
                 if (!cartSemesterUl) return;
 
-                // Clear previous cart items first
                 cartSemesterUl.innerHTML = '';
 
                 cart.forEach(item => {
                     const li = document.createElement('li');
                     li.classList.add('cart-item');
+                    const isRetake = takenCourseCodes.includes(item.code);
+                    const remarkClass = isRetake ? "remark retake" : "remark";
+                    const remarkText = isRetake ? "재수강" : "담은 과목";
+
                     li.innerHTML = `
                         <span class="course-info">
                             <span>${item.name} (${item.code})</span>
                         </span>
-                        <span class="remark">담은 과목</span>
+                        <span class="${remarkClass}">${remarkText}</span>
                     `;
                     cartSemesterUl.appendChild(li);
                 });
 
-                // Automatically open the cart semester if it has items
                 const headerIcon = cartSemesterDiv.previousElementSibling.querySelector('.toggle-icon');
                 if (cart.length > 0) {
                     cartSemesterDiv.style.display = 'block';
-                    if(headerIcon) {
-                        headerIcon.classList.add('open');
-                    }
+                    if(headerIcon) headerIcon.classList.add('open');
                 } else {
                     cartSemesterDiv.style.display = 'none';
-                     if(headerIcon) {
-                        headerIcon.classList.remove('open');
-                    }
+                     if(headerIcon) headerIcon.classList.remove('open');
                 }
             }
 
@@ -334,12 +337,18 @@
             closeCartBtn.addEventListener('click', () => {
                 cartPanel.classList.remove('open');
             });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && cartPanel.classList.contains('open')) {
+                    cartPanel.classList.remove('open');
+                }
+            });
             
             function removeFromCart(courseCode) {
                 cart = cart.filter(item => item.code !== courseCode);
                 updateCart();
                 renderCart();
-                populateCartInTranscript(); // Re-populate transcript after removing item
+                populateCartInTranscript();
             }
             
             function updateCart() {
@@ -368,7 +377,6 @@
             }
             
             cartItemsList.addEventListener('click', event => {
-                event.stopPropagation();
                 if (event.target && event.target.classList.contains('remove-item-btn')) {
                     const courseCode = event.target.dataset.courseCode;
                     removeFromCart(courseCode);
