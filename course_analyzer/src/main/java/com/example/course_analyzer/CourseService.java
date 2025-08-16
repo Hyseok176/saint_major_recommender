@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -225,8 +226,16 @@ public class CourseService {
                 .collect(Collectors.toList());
     }
 
-    public Map<String, List<CourseStatDto>> recommendCourses(User user) {
-        // 1. Get user's major prefixes
+    private int getCurrentSemester(User user) {
+        OptionalDouble maxSemester = semesterCourseRepository.findByUser(user).stream()
+                .mapToDouble(SemesterCourse::getSemester)
+                .max();
+        return (int) Math.ceil(maxSemester.orElse(1.0));
+    }
+
+    public Map<String, List<RecommendedCourseDto>> recommendCourses(User user, List<String> cartCourseCodes) {
+        int currentUserSemester = getCurrentSemester(user);
+
         List<String> userMajorPrefixes = new ArrayList<>();
         if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
             userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
@@ -238,44 +247,50 @@ public class CourseService {
             userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
         }
 
-        // 2. Get all courses and user's taken courses
         List<CourseMapping> allCourses = courseMappingRepository.findAll();
         List<String> userTakenCourseCodes = semesterCourseRepository.findByUser(user).stream()
                 .map(SemesterCourse::getCourseCode)
                 .collect(Collectors.toList());
 
-        // 3. Major Recommendations
-        List<CourseStatDto> majorRecommendations = new ArrayList<>();
+        // Major Recommendations
+        List<RecommendedCourseDto> majorRecommendations = new ArrayList<>();
         if (!userMajorPrefixes.isEmpty()) {
             majorRecommendations = allCourses.stream()
                     .filter(course -> userMajorPrefixes.stream().anyMatch(prefix -> !prefix.isEmpty() && course.getCourseCode().startsWith(prefix)))
                     .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
-                    .map(course -> new CourseStatDto(
-                            course.getCourseCode(),
-                            course.getCourseName(),
-                            semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
-                    ))
-                    .sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed())
+                    .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
+                    .map(course -> {
+                        List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
+                        double score = allTakes.stream()
+                                .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
+                                .sum();
+                        double averageProximity = allTakes.isEmpty() ? 0 : score / allTakes.size();
+                        return new RecommendedCourseDto(course, score, allTakes.size(), averageProximity);
+                    })
+                    .sorted(Comparator.comparingDouble(RecommendedCourseDto::getScore).reversed())
                     .limit(5)
                     .collect(Collectors.toList());
         }
 
-        // 4. GE Recommendations
-        List<String> allMajorPrefixes = List.of("MAT", "PHY", "CHM", "BIO", "EEE", "MEE", "CSE", "CBE", "SSE", "AIE", "ECO", "MGT", "EDU"); // All possible major prefixes
-        List<CourseStatDto> geRecommendations = allCourses.stream()
+        // GE Recommendations
+        List<String> allMajorPrefixes = List.of("MAT", "PHY", "CHM", "BIO", "EEE", "MEE", "CSE", "CBE", "SSE", "AIE", "ECO", "MGT", "EDU");
+        List<RecommendedCourseDto> geRecommendations = allCourses.stream()
                 .filter(course -> allMajorPrefixes.stream().noneMatch(prefix -> course.getCourseCode().startsWith(prefix)))
                 .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
-                .map(course -> new CourseStatDto(
-                        course.getCourseCode(),
-                        course.getCourseName(),
-                        semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
-                ))
-                .sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed())
+                .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
+                .map(course -> {
+                    List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
+                    double score = allTakes.stream()
+                            .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
+                            .sum();
+                    double averageProximity = allTakes.isEmpty() ? 0 : score / allTakes.size();
+                    return new RecommendedCourseDto(course, score, allTakes.size(), averageProximity);
+                })
+                .sorted(Comparator.comparingDouble(RecommendedCourseDto::getScore).reversed())
                 .limit(5)
                 .collect(Collectors.toList());
 
-        // 5. Combine into a map
-        Map<String, List<CourseStatDto>> recommendationsMap = new HashMap<>();
+        Map<String, List<RecommendedCourseDto>> recommendationsMap = new HashMap<>();
         recommendationsMap.put("major", majorRecommendations);
         recommendationsMap.put("ge", geRecommendations);
 
@@ -300,6 +315,4 @@ public class CourseService {
             default: return "";
         }
     }
-
-    
 }

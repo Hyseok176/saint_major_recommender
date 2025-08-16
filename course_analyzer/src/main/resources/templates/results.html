@@ -9,9 +9,19 @@
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
         .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
         h2 { color: #555; margin-top: 20px; }
-        h3 { color: #777; margin-top: 15px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        h3 { 
+            color: #777; 
+            margin-top: 15px; 
+            margin-bottom: 10px; 
+            border-bottom: 1px solid #eee; 
+            padding-bottom: 5px; 
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
         ul { list-style-type: none; padding: 0; }
         li { background-color: #e9ecef; margin-bottom: 8px; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        li.cart-item { background-color: #d1e7dd; } /* Light green for cart items */
         .course-info { flex-grow: 1; }
         .remark { font-size: 0.8em; color: #666; margin-left: 10px; }
         .button-container { display: flex; justify-content: center; gap: 10px; margin-top: 30px; }
@@ -49,6 +59,17 @@
         }
         .logo-nav {
             height: 40px;
+        }
+        .toggle-icon {
+            margin-right: 10px;
+            transition: transform 0.2s ease-in-out;
+            transform: rotate(-90deg); /* Initially pointing right */
+        }
+        .toggle-icon.open {
+            transform: rotate(0deg); /* Pointing down when open */
+        }
+        .course-list {
+            display: none; /* Initially hidden */
         }
         #cart-icon {
             position: fixed;
@@ -194,17 +215,24 @@
             </div>
         </div>
 
-        <div th:if="${not #maps.isEmpty(coursesBySemester)}">
-            <div th:each="entry : ${coursesBySemester}">
-                <h3 th:text="${entry.key % 1 == 0 ? #numbers.formatDecimal(entry.key, 1, 0) : #numbers.formatDecimal(entry.key, 1, 1)} + '학기'"></h3>
-                <ul>
-                    <li th:each="course : ${entry.value}">
-                        <span class="course-info">
-                            <span th:text="${course.courseName}"></span>
-                        </span>
-                        <span th:if="${not #strings.isEmpty(course.remark)}" class="remark" th:text="${course.remark}"></span>
-                    </li>
-                </ul>
+        <div id="semesters-container" th:if="${not #maps.isEmpty(coursesBySemester)}">
+            <div th:each="entry, iterStat : ${coursesBySemester}">
+                <h3 th:attr="data-target='#courses-' + ${iterStat.index}">
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                    <span th:text="${entry.key}"></span>
+                </h3>
+                <div class="course-list" 
+                     th:id="'courses-' + ${iterStat.index}"
+                     th:classappend="${#strings.contains(entry.key, '장바구니')} ? 'cart-semester-list' : ''">
+                    <ul>
+                        <li th:each="course : ${entry.value}">
+                            <span class="course-info">
+                                <span th:text="${course.courseName} + ' (' + ${course.courseCode} + ')'"></span>
+                            </span>
+                            <span th:if="${not #strings.isEmpty(course.remark)}" class="remark" th:text="${course.remark}"></span>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
         <p th:if="${#maps.isEmpty(coursesBySemester)}">분석된 과목이 없습니다.</p>
@@ -230,6 +258,26 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Semester toggle functionality
+            document.querySelectorAll('h3[data-target]').forEach(header => {
+                header.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const targetElement = document.querySelector(targetId);
+                    const icon = this.querySelector('.toggle-icon');
+
+                    if (targetElement) {
+                        if (targetElement.style.display === 'block') {
+                            targetElement.style.display = 'none';
+                            icon.classList.remove('open');
+                        } else {
+                            targetElement.style.display = 'block';
+                            icon.classList.add('open');
+                        }
+                    }
+                });
+            });
+
+            // Cart functionality
             const cartIcon = document.getElementById('cart-icon');
             const cartPanel = document.getElementById('cart-panel');
             const closeCartBtn = document.getElementById('close-cart-btn');
@@ -238,6 +286,46 @@
             
             let cart = JSON.parse(localStorage.getItem('courseCart')) || [];
             
+            // Function to populate cart items into the next semester
+            function populateCartInTranscript() {
+                const cartSemesterDiv = document.querySelector('.cart-semester-list');
+                if (!cartSemesterDiv) return;
+
+                const cartSemesterUl = cartSemesterDiv.querySelector('ul');
+                if (!cartSemesterUl) return;
+
+                // Clear previous cart items first
+                cartSemesterUl.innerHTML = '';
+
+                cart.forEach(item => {
+                    const li = document.createElement('li');
+                    li.classList.add('cart-item');
+                    li.innerHTML = `
+                        <span class="course-info">
+                            <span>${item.name} (${item.code})</span>
+                        </span>
+                        <span class="remark">담은 과목</span>
+                    `;
+                    cartSemesterUl.appendChild(li);
+                });
+
+                // Automatically open the cart semester if it has items
+                const headerIcon = cartSemesterDiv.previousElementSibling.querySelector('.toggle-icon');
+                if (cart.length > 0) {
+                    cartSemesterDiv.style.display = 'block';
+                    if(headerIcon) {
+                        headerIcon.classList.add('open');
+                    }
+                } else {
+                    cartSemesterDiv.style.display = 'none';
+                     if(headerIcon) {
+                        headerIcon.classList.remove('open');
+                    }
+                }
+            }
+
+            populateCartInTranscript();
+
             cartIcon.addEventListener('click', () => {
                 cartPanel.classList.add('open');
                 renderCart();
@@ -247,16 +335,11 @@
                 cartPanel.classList.remove('open');
             });
             
-            document.addEventListener('click', (event) => {
-                if (!cartPanel.contains(event.target) && !cartIcon.contains(event.target) && cartPanel.classList.contains('open')) {
-                    cartPanel.classList.remove('open');
-                }
-            });
-            
             function removeFromCart(courseCode) {
                 cart = cart.filter(item => item.code !== courseCode);
                 updateCart();
                 renderCart();
+                populateCartInTranscript(); // Re-populate transcript after removing item
             }
             
             function updateCart() {

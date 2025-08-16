@@ -13,6 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
@@ -99,13 +100,10 @@ public class CourseController {
 
         List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
 
-        if (savedCourses.isEmpty()) {
-            return "redirect:/upload-form";
-        }
-
-        Map<Double, List<Course>> coursesBySemester = savedCourses.stream()
+        // Use TreeMap to sort by semester number automatically
+        Map<Double, List<Course>> coursesBySemesterNumber = savedCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
-                        LinkedHashMap::new,
+                        java.util.TreeMap::new,
                         Collectors.mapping(sc -> {
                             String courseCode = sc.getCourseCode();
                             String actualCourseName = courseMappingRepository.findById(courseCode)
@@ -114,7 +112,26 @@ public class CourseController {
                             return new Course(String.valueOf(sc.getSemester()), courseCode, actualCourseName, sc.getGrade());
                         }, Collectors.toList())));
 
-        model.addAttribute("coursesBySemester", coursesBySemester);
+        // Use LinkedHashMap to maintain insertion order for the view
+        Map<String, List<Course>> coursesForModel = new LinkedHashMap<>();
+        
+        // Format semester numbers into strings for display
+        coursesBySemesterNumber.forEach((semester, courses) -> {
+            String semesterKey = (semester % 1 == 0)
+                ? String.format("%.0f학기", semester)
+                : String.format("%.1f학기", semester);
+            coursesForModel.put(semesterKey, courses);
+        });
+
+        // Determine the next semester's name for the cart section
+        double lastSemester = coursesBySemesterNumber.isEmpty() ? 0.0 : ((java.util.TreeMap<Double, List<Course>>) coursesBySemesterNumber).lastKey();
+        double nextSemesterNum = Math.floor(lastSemester) + 1;
+        String nextSemesterName = String.format("%.0f학기 (장바구니)", nextSemesterNum);
+
+        // Add the special cart section with a predictable key
+        coursesForModel.put(nextSemesterName, new ArrayList<>());
+
+        model.addAttribute("coursesBySemester", coursesForModel);
         return "results";
     }
 
@@ -124,14 +141,30 @@ public class CourseController {
     }
 
     @GetMapping("/recommend")
-    public String recommend(Model model) {
+    public String showRecommendPage(Model model) {
+        // Return the initial page structure. The content will be loaded dynamically.
+        model.addAttribute("title", "과목 추천");
+        // Provide empty maps to prevent errors on initial render
+        model.addAttribute("recommendedCoursesMap", Map.of("major", new ArrayList<>(), "ge", new ArrayList<>()));
+        return "recommend";
+    }
+
+    @PostMapping("/recommend")
+    public String recommend(@RequestBody(required = false) List<String> cartCourseCodes, Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
+        
+        List<String> finalCartCourseCodes = cartCourseCodes == null ? new ArrayList<>() : cartCourseCodes;
+
         System.out.println("Generating recommendations for user: " + user.getUsername());
-        Map<String, List<CourseStatDto>> recommendedCoursesMap = courseService.recommendCourses(user);
+        System.out.println("Cart courses: " + finalCartCourseCodes);
+
+        Map<String, List<RecommendedCourseDto>> recommendedCoursesMap = courseService.recommendCourses(user, finalCartCourseCodes);
+        
         model.addAttribute("title", "과목 추천");
         model.addAttribute("recommendedCoursesMap", recommendedCoursesMap);
-        return "recommend";
+        
+        return "recommend :: #recommendation-results";
     }
 
     @GetMapping("/all-courses")
