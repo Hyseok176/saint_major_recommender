@@ -1,1 +1,10 @@
-feat: Update CourseService and CourseController for logging and UI
+feat: Implement persistent user-specific course cart
+
+Refactored the course cart (담아놓기) functionality to be persistent and user-specific by storing cart items in the database.
+
+Key changes:
+- Utilized the existing `SemesterCourse` entity to store cart items, using a `semester` value of `0` as an identifier for planned/carted courses. This avoids introducing a new, redundant table.
+- Removed the previous client-side `localStorage` implementation, which caused the cart state to be shared between users on the same browser.
+- Added new REST endpoints under `/api/cart-courses` to handle adding, removing, and fetching cart items from the database.
+- Updated the JavaScript on `all-courses.html`, `recommend.html`, and `results.html` to use the new backend API, ensuring a consistent state for the floating cart panel across the application.
+- Modified the `results` page to correctly fetch and display the user's cart items from the database within the main content area.

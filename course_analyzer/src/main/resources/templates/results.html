@@ -260,6 +260,7 @@
     <script th:inline="javascript">
         /*<![CDATA[*/
         const takenCourseCodes = /*[[${takenCourseCodes}]]*/ [];
+        const savedCourses = /*[[${savedCourses}]]*/ [];
         /*]]>*/
     </script>
     <script>
@@ -283,6 +284,17 @@
                 });
             });
 
+            // Automatically open the cart semester if it has items
+            const cartSemesterDiv = document.querySelector('.cart-semester-list');
+            if (cartSemesterDiv) {
+                const cartList = cartSemesterDiv.querySelector('ul');
+                if (cartList && cartList.children.length > 0) {
+                    cartSemesterDiv.style.display = 'block';
+                    const headerIcon = cartSemesterDiv.previousElementSibling.querySelector('.toggle-icon');
+                    if(headerIcon) headerIcon.classList.add('open');
+                }
+            }
+
             // Cart functionality
             const cartIcon = document.getElementById('cart-icon');
             const cartPanel = document.getElementById('cart-panel');
@@ -290,69 +302,9 @@
             const cartItemsList = document.getElementById('cart-items');
             const cartCount = document.getElementById('cart-count');
             
-            let cart = JSON.parse(localStorage.getItem('courseCart')) || [];
-            
-            function populateCartInTranscript() {
-                const cartSemesterDiv = document.querySelector('.cart-semester-list');
-                if (!cartSemesterDiv) return;
-
-                const cartSemesterUl = cartSemesterDiv.querySelector('ul');
-                if (!cartSemesterUl) return;
-
-                cartSemesterUl.innerHTML = '';
-
-                cart.forEach(item => {
-                    const li = document.createElement('li');
-                    li.classList.add('cart-item');
-                    const isRetake = takenCourseCodes.includes(item.code);
-                    const remarkClass = isRetake ? "remark retake" : "remark";
-                    const remarkText = isRetake ? "재수강" : "담은 과목";
-
-                    li.innerHTML = `
-                        <span class="course-info">
-                            <span>${item.name} (${item.code})</span>
-                        </span>
-                        <span class="${remarkClass}">${remarkText}</span>
-                    `;
-                    cartSemesterUl.appendChild(li);
-                });
-
-                const headerIcon = cartSemesterDiv.previousElementSibling.querySelector('.toggle-icon');
-                if (cart.length > 0) {
-                    cartSemesterDiv.style.display = 'block';
-                    if(headerIcon) headerIcon.classList.add('open');
-                } else {
-                    cartSemesterDiv.style.display = 'none';
-                     if(headerIcon) headerIcon.classList.remove('open');
-                }
-            }
-
-            populateCartInTranscript();
-
-            cartIcon.addEventListener('click', () => {
-                cartPanel.classList.add('open');
-                renderCart();
-            });
-            
-            closeCartBtn.addEventListener('click', () => {
-                cartPanel.classList.remove('open');
-            });
-
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape' && cartPanel.classList.contains('open')) {
-                    cartPanel.classList.remove('open');
-                }
-            });
-            
-            function removeFromCart(courseCode) {
-                cart = cart.filter(item => item.code !== courseCode);
-                updateCart();
-                renderCart();
-                populateCartInTranscript();
-            }
+            let cart = savedCourses.map(item => ({ code: item.courseCode, name: item.courseName }));
             
             function updateCart() {
-                localStorage.setItem('courseCart', JSON.stringify(cart));
                 cartCount.textContent = cart.length;
                 cartCount.style.display = cart.length > 0 ? 'flex' : 'none';
             }
@@ -375,6 +327,39 @@
                     cartItemsList.appendChild(li);
                 });
             }
+
+            cartIcon.addEventListener('click', () => {
+                cartPanel.classList.add('open');
+                renderCart();
+            });
+            
+            closeCartBtn.addEventListener('click', () => {
+                cartPanel.classList.remove('open');
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && cartPanel.classList.contains('open')) {
+                    cartPanel.classList.remove('open');
+                }
+            });
+            
+            async function removeFromCart(courseCode) {
+                 try {
+                    const response = await fetch(`/api/saved-courses/${courseCode}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to remove course from cart.');
+                    }
+                    
+                    location.reload();
+
+                } catch (error) {
+                    console.error('Error removing from cart:', error);
+                    alert('과목을 삭제하는 중 오류가 발생했습니다.');
+                }
+            }
             
             cartItemsList.addEventListener('click', event => {
                 if (event.target && event.target.classList.contains('remove-item-btn')) {
@@ -384,6 +369,7 @@
             });
             
             updateCart();
+            renderCart();
         });
     </script>
 </body>

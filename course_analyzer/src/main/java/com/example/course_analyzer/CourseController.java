@@ -2,6 +2,8 @@ package com.example.course_analyzer;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -10,24 +12,16 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.LinkedHashMap;
 
 @Controller
 public class CourseController {
@@ -98,16 +92,16 @@ public class CourseController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
 
-        List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
+        List<SemesterCourse> takenCourses = semesterCourseRepository.findByUser(user).stream()
+            .filter(c -> c.getSemester() > 0)
+            .collect(Collectors.toList());
 
-        // Extract taken course codes for the "retake" feature
-        List<String> takenCourseCodes = savedCourses.stream()
+        List<String> takenCourseCodes = takenCourses.stream()
                 .map(SemesterCourse::getCourseCode)
                 .collect(Collectors.toList());
         model.addAttribute("takenCourseCodes", takenCourseCodes);
 
-        // Use TreeMap to sort by semester number automatically
-        Map<Double, List<Course>> coursesBySemesterNumber = savedCourses.stream()
+        Map<Double, List<Course>> coursesBySemesterNumber = takenCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
                         java.util.TreeMap::new,
                         Collectors.mapping(sc -> {
@@ -118,10 +112,7 @@ public class CourseController {
                             return new Course(String.valueOf(sc.getSemester()), courseCode, actualCourseName, sc.getGrade());
                         }, Collectors.toList())));
 
-        // Use LinkedHashMap to maintain insertion order for the view
         Map<String, List<Course>> coursesForModel = new LinkedHashMap<>();
-        
-        // Format semester numbers into strings for display
         coursesBySemesterNumber.forEach((semester, courses) -> {
             String semesterKey = (semester % 1 == 0)
                 ? String.format("%.0f학기", semester)
@@ -129,13 +120,10 @@ public class CourseController {
             coursesForModel.put(semesterKey, courses);
         });
 
-        // Determine the next semester's name for the cart section
-        double lastSemester = coursesBySemesterNumber.isEmpty() ? 0.0 : ((java.util.TreeMap<Double, List<Course>>) coursesBySemesterNumber).lastKey();
-        double nextSemesterNum = Math.floor(lastSemester) + 1;
-        String nextSemesterName = String.format("%.0f학기 (장바구니)", nextSemesterNum);
+        // Add saved courses to the model for the floating cart
+        List<SavedCourse> savedCourses = courseService.getSavedCourses(user.getUsername());
+        model.addAttribute("savedCourses", savedCourses);
 
-        // Add the special cart section with a predictable key
-        coursesForModel.put(nextSemesterName, new ArrayList<>());
 
         model.addAttribute("coursesBySemester", coursesForModel);
         return "results";
@@ -214,8 +202,6 @@ public class CourseController {
         return "all-courses";
     }
 
-    
-
     @GetMapping("/api/course-stats/{subjectCode}")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getCourseStats(@PathVariable String subjectCode) {
@@ -238,6 +224,39 @@ public class CourseController {
         }
     }
 
+    @GetMapping("/api/saved-courses")
+    @ResponseBody
+    public ResponseEntity<List<SavedCourse>> getSavedCourses(Authentication authentication) {
+        User user = getUserFromAuthentication(authentication);
+        List<SavedCourse> savedCourses = courseService.getSavedCourses(user.getUsername());
+        return ResponseEntity.ok(savedCourses);
+    }
+
+    @PostMapping("/api/saved-courses/{courseCode}")
+    @ResponseBody
+    public ResponseEntity<?> addSavedCourse(@PathVariable String courseCode, @RequestBody Map<String, String> payload, Authentication authentication) {
+        User user = getUserFromAuthentication(authentication);
+        String courseName = payload.get("courseName");
+        try {
+            SavedCourse savedCourse = courseService.addSavedCourse(user.getUsername(), courseCode, courseName);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedCourse);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/api/saved-courses/{courseCode}")
+    @ResponseBody
+    public ResponseEntity<?> deleteSavedCourse(@PathVariable String courseCode, Authentication authentication) {
+        User user = getUserFromAuthentication(authentication);
+        try {
+            courseService.deleteSavedCourse(user.getUsername(), courseCode);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
     private User getUserFromAuthentication(Authentication authentication) {
         if (authentication instanceof OAuth2AuthenticationToken) {
             OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
@@ -250,6 +269,4 @@ public class CourseController {
                     .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
         }
     }
-
-    
 }

@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +19,6 @@ import java.util.OptionalDouble;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.HashMap;
 
 @Service
 public class CourseService {
@@ -28,6 +28,12 @@ public class CourseService {
 
     @Autowired
     private CourseMappingRepository courseMappingRepository;
+
+    @Autowired
+    private SavedCourseRepository savedCourseRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Transactional
     public void updateUserTranscript(User user, MultipartFile file, String major1, String major2, String major3, String ipAddress) throws IOException {
@@ -316,5 +322,33 @@ public class CourseService {
             case "교육문화": return "EDU";
             default: return "";
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<SavedCourse> getSavedCourses(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        return savedCourseRepository.findByUser(user);
+    }
+
+    @Transactional
+    public SavedCourse addSavedCourse(String username, String courseCode, String courseName) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        if (savedCourseRepository.findByUser(user).size() >= 8) {
+            throw new IllegalStateException("장바구니에는 최대 8과목까지 담을 수 있습니다.");
+        }
+        if (savedCourseRepository.existsByUserAndCourseCode(user, courseCode)) {
+            throw new IllegalStateException("이미 장바구니에 담긴 과목입니다.");
+        }
+        SavedCourse savedCourse = new SavedCourse(user, courseCode, courseName);
+        return savedCourseRepository.save(savedCourse);
+    }
+
+    @Transactional
+    public void deleteSavedCourse(String username, String courseCode) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        savedCourseRepository.deleteByUserAndCourseCode(user, courseCode);
     }
 }
