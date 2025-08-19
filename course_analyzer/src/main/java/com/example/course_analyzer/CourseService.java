@@ -254,6 +254,7 @@ public class CourseService {
             targetSemesters.add(1);
             targetSemesters.add(3);
         }
+        targetSemesters.add(4); // semester가 4인 과목은 항상 포함
 
         List<String> userMajorPrefixes = new ArrayList<>();
         if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
@@ -281,6 +282,9 @@ public class CourseService {
                     .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
                     .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
                     .map(course -> {
+                        if (course.getSemester() != null && course.getSemester() == 4) {
+                            return new RecommendedCourseDto(course, 0.01, 0, 0);
+                        }
                         List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
                         double score = allTakes.stream()
                                 .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
@@ -301,6 +305,9 @@ public class CourseService {
                 .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
                 .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
                 .map(course -> {
+                    if (course.getSemester() != null && course.getSemester() == 4) {
+                        return new RecommendedCourseDto(course, 0.01, 0, 0);
+                    }
                     List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
                     double score = allTakes.stream()
                             .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))

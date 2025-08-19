@@ -230,6 +230,7 @@
                 <li th:each="rec : ${recommendedCoursesMap.major}">
                     <span class="course-info">
                         <span th:text="${rec.course.courseName} + ' (' + ${rec.course.courseCode} + ')'"></span>
+                        <span th:if="${rec.course.semester == 4}" data-bs-toggle="tooltip" data-bs-placement="top" title="최근에 열린 적 없는 과목입니다." style="cursor: help; color: #ffc107; margin-left: 5px;">⚠️</span>
                     </span>
                     <i class="fas fa-info-circle info-icon"
                        data-bs-toggle="tooltip"
@@ -255,6 +256,7 @@
                 <li th:each="rec : ${recommendedCoursesMap.ge}">
                     <span class="course-info">
                         <span th:text="${rec.course.courseName} + ' (' + ${rec.course.courseCode} + ')'"></span>
+                        <span th:if="${rec.course.semester == 4}" data-bs-toggle="tooltip" data-bs-placement="top" title="최근에 열린 적 없는 과목입니다." style="cursor: help; color: #ffc107; margin-left: 5px;">⚠️</span>
                     </span>
                      <i class="fas fa-info-circle info-icon"
                        data-bs-toggle="tooltip"

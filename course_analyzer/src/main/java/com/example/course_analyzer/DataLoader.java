@@ -34,10 +34,10 @@ public class DataLoader implements CommandLineRunner {
         Map<String, CourseMapping> courses = new HashMap<>();
 
         // 1. 1학기.csv 파일 로드
-        loadCoursesFromFile("data/1학기.csv", 1, courses);
+        loadCoursesFromFile("data/semester1.csv", 1, courses);
 
         // 2. 2학기.csv 파일 로드
-        loadCoursesFromFile("data/2학기.csv", 2, courses);
+        loadCoursesFromFile("data/semester2.csv", 2, courses);
 
         // 3. DB에 최종 결과 저장
         courseMappingRepository.saveAll(courses.values());
