@@ -29,9 +29,6 @@ public class CourseService {
     @Autowired
     private CourseMappingRepository courseMappingRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
     @Transactional
     public void updateUserTranscript(User user, MultipartFile file, String major1, String major2, String major3, String ipAddress) throws IOException {
         user.setMajor1(major1.replace(" ", ""));
@@ -319,45 +316,5 @@ public class CourseService {
             case "교육문화": return "EDU";
             default: return "";
         }
-    }
-
-    @Transactional(readOnly = true)
-    public List<CartCourseDto> getCartCourses(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        List<SemesterCourse> cartCourses = semesterCourseRepository.findByUserAndSemester(user, 0);
-        return cartCourses.stream()
-                .map(sc -> {
-                    String courseName = courseMappingRepository.findById(sc.getCourseCode())
-                            .map(CourseMapping::getCourseName)
-                            .orElse("Unknown Course");
-                    return new CartCourseDto(sc.getCourseCode(), courseName);
-                })
-                .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public SemesterCourse addCourseToCart(String username, String courseCode, String courseName) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        if (semesterCourseRepository.findByUserAndSemester(user, 0).size() >= 8) {
-            throw new IllegalStateException("장바구니에는 최대 8과목까지 담을 수 있습니다.");
-        }
-        if (semesterCourseRepository.existsByUserAndCourseCodeAndSemester(user, courseCode, 0)) {
-            throw new IllegalStateException("이미 장바구니에 담긴 과목입니다.");
-        }
-        SemesterCourse cartItem = new SemesterCourse();
-        cartItem.setUser(user);
-        cartItem.setCourseCode(courseCode);
-        cartItem.setSemester(0); // Using 0 for cart items
-        cartItem.setGrade(null); // No grade for cart items
-        return semesterCourseRepository.save(cartItem);
-    }
-
-    @Transactional
-    public void removeCourseFromCart(String username, String courseCode) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        semesterCourseRepository.deleteByUserAndCourseCodeAndSemester(user, courseCode, 0);
     }
 }

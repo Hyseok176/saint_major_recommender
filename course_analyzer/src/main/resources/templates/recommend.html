@@ -305,50 +305,32 @@
             const cartCount = document.getElementById('cart-count');
             const recommendationResults = document.getElementById('recommendation-results');
             
-            let cart = [];
+            let cart = JSON.parse(localStorage.getItem('courseCart')) || [];
             let dismissedCourses = [];
             
-            async function fetchRecommendations() {
+            function fetchRecommendations() {
                 const payload = {
                     cartCourseCodes: cart.map(item => item.code),
                     dismissedCourseCodes: dismissedCourses
                 };
 
-                try {
-                    const response = await fetch('/recommend', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    const html = await response.text();
+                fetch('/recommend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.text())
+                .then(html => {
                     recommendationResults.innerHTML = html;
-                    // Re-initialize tooltips after content is replaced
-                    var newTooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                    newTooltipTriggerList.map(function (tooltipTriggerEl) {
-                        return new bootstrap.Tooltip(tooltipTriggerEl);
-                    });
-                } catch (error) {
-                    console.error('Error fetching recommendations:', error);
-                }
+                    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                      return new bootstrap.Tooltip(tooltipTriggerEl)
+                    })
+                })
+                .catch(error => console.error('Error fetching recommendations:', error));
             }
 
-            async function initializeCart() {
-                try {
-                    const response = await fetch('/api/cart-courses');
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch saved courses.');
-                    }
-                    const savedCourses = await response.json();
-                    cart = savedCourses.map(item => ({ code: item.courseCode, name: item.courseName }));
-                    updateCart();
-                    renderCart();
-                    fetchRecommendations(); // Fetch recommendations after cart is loaded
-                } catch (error) {
-                    console.error('Error initializing cart:', error);
-                    alert('담은 과목 목록을 불러오는 데 실패했습니다.');
-                    fetchRecommendations(); // Fetch recommendations even if cart fails
-                }
-            }
+            fetchRecommendations();
             
             cartIcon.addEventListener('click', () => {
                 cartPanel.classList.add('open');
@@ -381,33 +363,12 @@
                 }
             });
             
-            async function addToCart(course) {
+            function addToCart(course) {
                 if (cart.length >= 8) {
                     alert('장바구니에는 최대 8개 과목만 담을 수 있습니다.');
                     return;
                 }
-                if (cart.some(item => item.code === course.code)) {
-                    alert('이미 장바구니에 담긴 과목입니다.');
-                    return;
-                }
-
-                try {
-                    const response = await fetch(`/api/cart-courses/${course.code}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ courseName: course.name })
-                    });
-
-                    if (response.status === 409) {
-                        alert(await response.text());
-                        return;
-                    }
-                    if (!response.ok) {
-                        throw new Error('Failed to add course to cart.');
-                    }
-
+                if (!cart.some(item => item.code === course.code)) {
                     cart.push(course);
                     updateCart();
                     renderCart();
@@ -415,34 +376,20 @@
                     const cartIcon = document.getElementById('cart-icon');
                     cartIcon.style.transform = 'scale(1.2)';
                     setTimeout(() => { cartIcon.style.transform = 'scale(1)'; }, 200);
-
-                } catch (error) {
-                    console.error('Error adding to cart:', error);
-                    alert('과목을 담는 중 오류가 발생했습니다.');
+                } else {
+                    alert('이미 장바구니에 담긴 과목입니다.');
                 }
             }
             
-            async function removeFromCart(courseCode) {
-                try {
-                    const response = await fetch(`/api/cart-courses/${courseCode}`, {
-                        method: 'DELETE'
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to remove course from cart.');
-                    }
-
-                    cart = cart.filter(item => item.code !== courseCode);
-                    updateCart();
-                    renderCart();
-                    fetchRecommendations();
-                } catch (error) {
-                    console.error('Error removing from cart:', error);
-                    alert('과목을 삭제하는 중 오류가 발생했습니다.');
-                }
+            function removeFromCart(courseCode) {
+                cart = cart.filter(item => item.code !== courseCode);
+                updateCart();
+                renderCart();
+                fetchRecommendations();
             }
             
             function updateCart() {
+                localStorage.setItem('courseCart', JSON.stringify(cart));
                 cartCount.textContent = cart.length;
                 cartCount.style.display = cart.length > 0 ? 'flex' : 'none';
             }
@@ -455,13 +402,13 @@
                 }
                 cart.forEach(item => {
                     const li = document.createElement('li');
-                    li.innerHTML = `
-                        <div class="course-details">
+                    li.innerHTML = (
+                        `<div class="course-details">
                             <span class="name">${item.name}</span>
                             <span class="code">(${item.code})</span>
                         </div>
-                        <button class="remove-item-btn" data-course-code="${item.code}">삭제</button>
-                    `;
+                        <button class="remove-item-btn" data-course-code="${item.code}">삭제</button>`
+                    );
                     cartItemsList.appendChild(li);
                 });
             }
@@ -473,7 +420,7 @@
                 }
             });
             
-            initializeCart();
+            updateCart();
         });
         /*]]>*/
     </script>
