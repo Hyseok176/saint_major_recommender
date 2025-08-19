@@ -242,6 +242,17 @@ public class CourseService {
     public Map<String, List<RecommendedCourseDto>> recommendCourses(User user, List<String> cartCourseCodes, List<String> dismissedCourseCodes) {
         int currentUserSemester = getCurrentSemester(user);
 
+        // 현재 월을 기준으로 학기 결정 (1-6월: 1학기, 7-12월: 2학기)
+        int currentMonth = java.time.LocalDate.now().getMonthValue();
+        List<Integer> targetSemesters = new ArrayList<>();
+        if (currentMonth >= 7) { // 하반기 -> 2학기 또는 공통 과목 추천
+            targetSemesters.add(2);
+            targetSemesters.add(3);
+        } else { // 상반기 -> 1학기 또는 공통 과목 추천
+            targetSemesters.add(1);
+            targetSemesters.add(3);
+        }
+
         List<String> userMajorPrefixes = new ArrayList<>();
         if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
             userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
@@ -253,7 +264,8 @@ public class CourseService {
             userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
         }
 
-        List<CourseMapping> allCourses = courseMappingRepository.findAll();
+        // 현재 학기에 맞는 과목만 DB에서 조회
+        List<CourseMapping> allCourses = courseMappingRepository.findBySemesterIn(targetSemesters);
         List<String> userTakenCourseCodes = semesterCourseRepository.findByUser(user).stream()
                 .map(SemesterCourse::getCourseCode)
                 .collect(Collectors.toList());

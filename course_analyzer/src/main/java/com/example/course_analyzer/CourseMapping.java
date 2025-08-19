@@ -11,6 +11,7 @@ public class CourseMapping {
     @Id
     private String courseCode;
     private String courseName;
+    private Integer semester; // 1: 1학기, 2: 2학기, 3: 1,2학기
 
     public CourseMapping() {
     }
@@ -34,5 +35,13 @@ public class CourseMapping {
 
     public void setCourseName(String courseName) {
         this.courseName = courseName;
+    }
+
+    public Integer getSemester() {
+        return semester;
+    }
+
+    public void setSemester(Integer semester) {
+        this.semester = semester;
     }
 }
