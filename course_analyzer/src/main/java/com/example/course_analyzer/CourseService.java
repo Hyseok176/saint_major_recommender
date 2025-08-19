@@ -81,26 +81,11 @@ public class CourseService {
                         CourseMapping newMapping = new CourseMapping();
                         newMapping.setCourseCode(courseCode);
                         newMapping.setCourseName(courseName);
-
-                        // Determine semester value
-                        SemesterInfo semesterInfo = new SemesterInfo(rawSemester);
-                        int semesterValue;
-                        switch (semesterInfo.getType()) {
-                            case "1":
-                                semesterValue = 1;
-                                break;
-                            case "2":
-                                semesterValue = 2;
-                                break;
-                            default: // For "S" (Summer) and "W" (Winter)
-                                semesterValue = 3;
-                                break;
-                        }
-                        newMapping.setSemester(semesterValue);
+                        newMapping.setSemester(4); // Set semester to 4 for all new courses
 
                         courseMappingRepository.save(newMapping);
                         String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date());
-                        System.out.println(String.format("NewCourse: %s, User:%s, IP:%s, CODE: %s, SEMESTER: %d", timestamp, userId, ipAddress, courseCode, semesterValue));
+                        System.out.println(String.format("NewCourse: %s, User:%s, IP:%s, CODE: %s, SEMESTER: 4", timestamp, userId, ipAddress, courseCode));
                     }
 
                     rawCourses.add(new Course(rawSemester, courseCode, courseName, ""));
