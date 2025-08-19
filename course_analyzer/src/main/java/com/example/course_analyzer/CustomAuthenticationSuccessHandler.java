@@ -45,8 +45,10 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             // Assuming the provider is always kakao for this context
             return userRepository.findByProviderAndProviderId("kakao", providerId)
                     .orElseThrow(() -> new UsernameNotFoundException("User not found with providerId: " + providerId));
+        } else {
+            String username = authentication.getName();
+            return userRepository.findByUsername(username)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
         }
-        // Handle other authentication types if necessary
-        throw new IllegalStateException("Unsupported authentication type: " + authentication.getClass().getName());
     }
 }

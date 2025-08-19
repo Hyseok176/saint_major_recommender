@@ -1,10 +1,18 @@
-feat: Implement persistent course cart with dedicated table
+fix: Address three UI and redirect issues
 
-Implemented a persistent, user-specific course cart by creating a new dedicated table (`saved_courses`) to store the items. This aligns with the explicit requirement for a separate table for this functionality.
+This commit fixes three separate issues reported by the user:
 
-Key changes:
-- Created new `SavedCourse` entity and `SavedCourseRepository`.
-- Implemented service and controller logic to manage cart items via the `/api/saved-courses` endpoints.
-- Replaced all client-side `localStorage` cart logic in `all-courses.html`, `recommend.html`, and `results.html` with API calls to the backend.
-- The floating cart is now populated with data from the database, ensuring persistence across sessions.
-- The `results.html` page is also updated to display the saved items correctly.
+1.  **Missing "Next Semester" Cart in Course History:**
+    - The `showResults` method in `CourseController` is updated to correctly fetch saved cart items.
+    - These items are now displayed in a dedicated "다음 학기 (장바구니)" (Next Semester (Cart)) section on the `results.html` page, making them visible within the main course history view.
+
+2.  **Recommendation List Collapsing on Cart Deletion:**
+    - Modified the `removeFromCart` function in `recommend.html` to no longer automatically refresh the entire recommendation list.
+    - This prevents the UI from collapsing when a user removes an item from the floating cart, improving user experience. The recommendations will now update only when the user explicitly adds an item or dismisses a recommendation.
+
+3.  **Incorrect Redirect for New Users:**
+    - Implemented a `CustomAuthenticationSuccessHandler` to manage post-login redirection.
+    - The handler checks if a user has existing course history (`SemesterCourse` records).
+    - New users without any history are now correctly redirected to the `/upload-form` page.
+    - Existing users are redirected to the `/results` page as before.
+    - Updated `SecurityConfig` to use this new success handler for OAuth2 and form logins.
