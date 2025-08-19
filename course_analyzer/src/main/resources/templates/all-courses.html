@@ -348,8 +348,26 @@
             const cartItemsList = document.getElementById('cart-items');
             const cartCount = document.getElementById('cart-count');
             
-            let cart = JSON.parse(localStorage.getItem('courseCart')) || [];
-            
+            let cart = []; // Cart is now managed in memory, fetched from server
+
+            // Fetch initial cart state from the server
+            async function initializeCart() {
+                try {
+                    const response = await fetch('/api/cart-courses');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch saved courses.');
+                    }
+                    const savedCourses = await response.json();
+                    // The server returns objects with courseCode and courseName
+                    cart = savedCourses.map(item => ({ code: item.courseCode, name: item.courseName }));
+                    updateCart();
+                    renderCart();
+                } catch (error) {
+                    console.error('Error initializing cart:', error);
+                    alert('담은 과목 목록을 불러오는 데 실패했습니다.');
+                }
+            }
+
             cartIcon.addEventListener('click', () => {
                 cartPanel.classList.add('open');
                 renderCart();
@@ -374,31 +392,67 @@
                 }
             });
             
-            function addToCart(course) {
+            async function addToCart(course) {
                 if (cart.length >= 8) {
                     alert('장바구니에는 최대 8과목까지 담을 수 있습니다.');
                     return;
                 }
-                if (!cart.some(item => item.code === course.code)) {
+                if (cart.some(item => item.code === course.code)) {
+                    alert('이미 장바구니에 담긴 과목입니다.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/cart-courses/${course.code}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ courseName: course.name })
+                    });
+
+                    if (response.status === 409) { // Conflict
+                        alert(await response.text());
+                        return;
+                    }
+                    if (!response.ok) {
+                        throw new Error('Failed to add course to cart.');
+                    }
+
                     cart.push(course);
                     updateCart();
                     renderCart();
                     const cartIcon = document.getElementById('cart-icon');
                     cartIcon.style.transform = 'scale(1.2)';
                     setTimeout(() => { cartIcon.style.transform = 'scale(1)'; }, 200);
-                } else {
-                    alert('이미 장바구니에 담긴 과목입니다.');
+
+                } catch (error) {
+                    console.error('Error adding to cart:', error);
+                    alert('과목을 담는 중 오류가 발생했습니다.');
                 }
             }
             
-            function removeFromCart(courseCode) {
-                cart = cart.filter(item => item.code !== courseCode);
-                updateCart();
-                renderCart();
+            async function removeFromCart(courseCode) {
+                try {
+                    const response = await fetch(`/api/cart-courses/${courseCode}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to remove course from cart.');
+                    }
+
+                    cart = cart.filter(item => item.code !== courseCode);
+                    updateCart();
+                    renderCart();
+                } catch (error) {
+                    console.error('Error removing from cart:', error);
+                    alert('과목을 삭제하는 중 오류가 발생했습니다.');
+                }
             }
             
             function updateCart() {
-                localStorage.setItem('courseCart', JSON.stringify(cart));
+                // No more localStorage
                 cartCount.textContent = cart.length;
                 cartCount.style.display = cart.length > 0 ? 'flex' : 'none';
             }
@@ -429,7 +483,8 @@
                 }
             });
             
-            updateCart();
+            // Initialize the cart on page load
+            initializeCart();
         });
     </script>
 </body>

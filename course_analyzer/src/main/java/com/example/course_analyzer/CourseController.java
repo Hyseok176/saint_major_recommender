@@ -2,6 +2,8 @@ package com.example.course_analyzer;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -10,21 +12,12 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -98,16 +91,25 @@ public class CourseController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
 
-        List<SemesterCourse> savedCourses = semesterCourseRepository.findByUser(user);
+        // 1. Fetch ALL courses from the database for the user
+        List<SemesterCourse> allUserCourses = semesterCourseRepository.findByUser(user);
 
-        // Extract taken course codes for the "retake" feature
-        List<String> takenCourseCodes = savedCourses.stream()
+        // 2. Separate taken courses from cart items
+        List<SemesterCourse> takenCourses = allUserCourses.stream()
+                .filter(c -> c.getSemester() > 0)
+                .collect(Collectors.toList());
+        
+        List<SemesterCourse> cartItems = allUserCourses.stream()
+                .filter(c -> c.getSemester() == 0)
+                .collect(Collectors.toList());
+
+        // 3. Prepare taken courses for display (grouped by semester)
+        List<String> takenCourseCodes = takenCourses.stream()
                 .map(SemesterCourse::getCourseCode)
                 .collect(Collectors.toList());
         model.addAttribute("takenCourseCodes", takenCourseCodes);
 
-        // Use TreeMap to sort by semester number automatically
-        Map<Double, List<Course>> coursesBySemesterNumber = savedCourses.stream()
+        Map<Double, List<Course>> coursesBySemesterNumber = takenCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
                         java.util.TreeMap::new,
                         Collectors.mapping(sc -> {
@@ -118,10 +120,7 @@ public class CourseController {
                             return new Course(String.valueOf(sc.getSemester()), courseCode, actualCourseName, sc.getGrade());
                         }, Collectors.toList())));
 
-        // Use LinkedHashMap to maintain insertion order for the view
-        Map<String, List<Course>> coursesForModel = new LinkedHashMap<>();
-        
-        // Format semester numbers into strings for display
+        Map<String, List<Course>> coursesForModel = new java.util.LinkedHashMap<>();
         coursesBySemesterNumber.forEach((semester, courses) -> {
             String semesterKey = (semester % 1 == 0)
                 ? String.format("%.0f학기", semester)
@@ -129,13 +128,21 @@ public class CourseController {
             coursesForModel.put(semesterKey, courses);
         });
 
-        // Determine the next semester's name for the cart section
+        // 4. Prepare cart items for display
         double lastSemester = coursesBySemesterNumber.isEmpty() ? 0.0 : ((java.util.TreeMap<Double, List<Course>>) coursesBySemesterNumber).lastKey();
         double nextSemesterNum = Math.floor(lastSemester) + 1;
-        String nextSemesterName = String.format("%.0f학기 (장바구니)", nextSemesterNum);
+        String cartSemesterName = String.format("%.0f학기 (장바구니)", nextSemesterNum);
 
-        // Add the special cart section with a predictable key
-        coursesForModel.put(nextSemesterName, new ArrayList<>());
+        List<Course> cartCoursesForModel = cartItems.stream()
+                .map(sc -> {
+                    String courseName = courseMappingRepository.findById(sc.getCourseCode())
+                            .map(CourseMapping::getCourseName)
+                            .orElse(sc.getCourseCode());
+                    return new Course(null, sc.getCourseCode(), courseName, "담은 과목");
+                })
+                .collect(Collectors.toList());
+
+        coursesForModel.put(cartSemesterName, cartCoursesForModel);
 
         model.addAttribute("coursesBySemester", coursesForModel);
         return "results";
@@ -214,8 +221,6 @@ public class CourseController {
         return "all-courses";
     }
 
-    
-
     @GetMapping("/api/course-stats/{subjectCode}")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getCourseStats(@PathVariable String subjectCode) {
@@ -238,6 +243,43 @@ public class CourseController {
         }
     }
 
+    @GetMapping("/api/cart-courses")
+    @ResponseBody
+    public ResponseEntity<List<CartCourseDto>> getCartCourses(Authentication authentication) {
+        User user = getUserFromAuthentication(authentication);
+        List<CartCourseDto> cartCourses = courseService.getCartCourses(user.getUsername());
+        return ResponseEntity.ok(cartCourses);
+    }
+
+    @PostMapping("/api/cart-courses/{courseCode}")
+    @ResponseBody
+    public ResponseEntity<?> addCourseToCart(@PathVariable String courseCode, @RequestBody Map<String, String> payload, Authentication authentication) {
+        User user = getUserFromAuthentication(authentication);
+        String courseName = payload.get("courseName");
+        try {
+            SemesterCourse cartItem = courseService.addCourseToCart(user.getUsername(), courseCode, courseName);
+            // To avoid circular references, we return a DTO
+            courseMappingRepository.findById(cartItem.getCourseCode()).ifPresent(courseMapping -> {
+                CartCourseDto cartCourseDto = new CartCourseDto(cartItem.getCourseCode(), courseMapping.getCourseName());
+            });
+            return ResponseEntity.status(HttpStatus.CREATED).body(new CartCourseDto(cartItem.getCourseCode(), courseName));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/api/cart-courses/{courseCode}")
+    @ResponseBody
+    public ResponseEntity<?> removeCourseFromCart(@PathVariable String courseCode, Authentication authentication) {
+        User user = getUserFromAuthentication(authentication);
+        try {
+            courseService.removeCourseFromCart(user.getUsername(), courseCode);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
     private User getUserFromAuthentication(Authentication authentication) {
         if (authentication instanceof OAuth2AuthenticationToken) {
             OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
@@ -250,6 +292,4 @@ public class CourseController {
                     .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
         }
     }
-
-    
 }
