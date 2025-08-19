@@ -92,15 +92,17 @@ public class CourseController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
 
+        // 1. Fetch taken courses (semester > 0)
         List<SemesterCourse> takenCourses = semesterCourseRepository.findByUser(user).stream()
-            .filter(c -> c.getSemester() > 0)
-            .collect(Collectors.toList());
+                .filter(c -> c.getSemester() > 0)
+                .collect(Collectors.toList());
 
         List<String> takenCourseCodes = takenCourses.stream()
                 .map(SemesterCourse::getCourseCode)
                 .collect(Collectors.toList());
         model.addAttribute("takenCourseCodes", takenCourseCodes);
 
+        // 2. Group taken courses by semester
         Map<Double, List<Course>> coursesBySemesterNumber = takenCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
                         java.util.TreeMap::new,
@@ -120,12 +122,24 @@ public class CourseController {
             coursesForModel.put(semesterKey, courses);
         });
 
-        // Add saved courses to the model for the floating cart
+        // 3. Fetch saved courses (cart items)
         List<SavedCourse> savedCourses = courseService.getSavedCourses(user.getUsername());
-        model.addAttribute("savedCourses", savedCourses);
+        
+        // 4. Create and add the "Next Semester (Cart)" section
+        double lastSemester = coursesBySemesterNumber.isEmpty() ? 0.0 : ((java.util.TreeMap<Double, List<Course>>) coursesBySemesterNumber).lastKey();
+        double nextSemesterNum = Math.floor(lastSemester) + 1;
+        String cartSemesterName = String.format("%.0f학기 (장바구니)", nextSemesterNum);
 
+        List<Course> cartCoursesForModel = savedCourses.stream()
+                .map(sc -> new Course(null, sc.getCourseCode(), sc.getCourseName(), "담은 과목"))
+                .collect(Collectors.toList());
+
+        coursesForModel.put(cartSemesterName, cartCoursesForModel);
 
         model.addAttribute("coursesBySemester", coursesForModel);
+        // Also add savedCourses for the floating cart
+        model.addAttribute("savedCourses", savedCourses);
+
         return "results";
     }
 
