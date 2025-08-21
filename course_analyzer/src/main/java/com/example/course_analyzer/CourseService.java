@@ -34,14 +34,15 @@ public class CourseService {
         tracks.put(2, List.of("ETS2001", "ETS2002", "ETS2004", "CHS2002", "CHS2003", "CHS2004", "HSS3032"));
         tracks.put(3, List.of("SHS2001", "SHS2002", "SHS2003", "SHS2007", "SHS2005"));
         tracks.put(4, List.of("STS2001", "STS2002", "STU4011", "STS2011", "STS2012", "STS2010", "STS2005", "STS2015"));
+        tracks.put(5, List.of("COR1003", "LCS2001", "LCS2003", "LCS2005", "LCS2007", "LCU4021", "LCU4025", "LCU4030", "LCU4035", "LCU4105"));
         GE_TRACKS = Collections.unmodifiableMap(tracks);
 
-        Map<Integer, String> trackNames = Map.of(
-            1, "인간과 신앙",
-            2, "인간과 사상",
-            3, "인간과 사회",
-            4, "인간과 과학&AI"
-        );
+        Map<Integer, String> trackNames = new HashMap<>();
+        trackNames.put(1, "인간과 신앙");
+        trackNames.put(2, "인간과 사상");
+        trackNames.put(3, "인간과 사회");
+        trackNames.put(4, "인간과 과학&AI");
+        trackNames.put(5, "글로벌 언어");
 
         Map<String, String> reverseMap = new HashMap<>();
         for (Map.Entry<Integer, List<String>> entry : GE_TRACKS.entrySet()) {
