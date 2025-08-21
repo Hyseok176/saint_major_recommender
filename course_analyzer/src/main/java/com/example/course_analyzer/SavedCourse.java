@@ -28,9 +28,18 @@ public class SavedCourse {
     @Column(name = "course_name", nullable = false)
     private String courseName;
 
-    public SavedCourse(User user, String courseCode, String courseName) {
+    @Column(name = "target_semester")
+    private String targetSemester;
+
+    public SavedCourse(User user, String courseCode, String courseName, String targetSemester) {
         this.user = user;
         this.courseCode = courseCode;
         this.courseName = courseName;
+        this.targetSemester = targetSemester;
+    }
+
+    // 기존 코드를 위한 호환성 생성자
+    public SavedCourse(User user, String courseCode, String courseName) {
+        this(user, courseCode, courseName, null);
     }
 }

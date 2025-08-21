@@ -248,13 +248,29 @@ public class CourseService {
         return stats;
     }
 
-    public List<CourseStatDto> getCoursesByMajor(String majorPrefix) {
-        List<CourseMapping> courses = courseMappingRepository.findByCourseCodeStartingWith(majorPrefix);
-        return courses.stream().map(course -> new CourseStatDto(course.getCourseCode(), course.getCourseName(), semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode()))).sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed()).collect(Collectors.toList());
+    public List<CourseStatDto> getCoursesByMajor(String majorPrefix, Integer semester) {
+        List<Integer> targetSemesters = new ArrayList<>(List.of(3, 4)); // Always include common and unsorted
+        if (semester != null) {
+            targetSemesters.add(semester);
+        } else {
+            targetSemesters.addAll(List.of(1, 2)); // If no semester is selected, show all
+        }
+        List<CourseMapping> courses = courseMappingRepository.findByCourseCodeStartingWithAndSemesterIn(majorPrefix, targetSemesters);
+        return courses.stream()
+                .map(course -> new CourseStatDto(course.getCourseCode(), course.getCourseName(), semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())))
+                .sorted(Comparator.comparingLong(CourseStatDto::getTotalStudentCount).reversed())
+                .collect(Collectors.toList());
     }
 
-    public List<CourseMapping> getNonMajorCourses(User user) {
-        List<CourseMapping> allCourses = courseMappingRepository.findAll();
+    public List<CourseMapping> getNonMajorCourses(User user, Integer semester) {
+        List<Integer> targetSemesters = new ArrayList<>(List.of(3, 4));
+        if (semester != null) {
+            targetSemesters.add(semester);
+        } else {
+            targetSemesters.addAll(List.of(1, 2));
+        }
+        List<CourseMapping> allCoursesInSemester = courseMappingRepository.findAllBySemesterIn(targetSemesters);
+        
         List<String> userMajorPrefixes = new ArrayList<>();
         if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
             userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor1()));
@@ -266,8 +282,7 @@ public class CourseService {
             userMajorPrefixes.add(getCoursePrefixForMajor(user.getMajor3()));
         }
 
-        // Filter out courses that belong to ANY of the user's declared majors
-        return allCourses.stream()
+        return allCoursesInSemester.stream()
                 .filter(course -> userMajorPrefixes.stream().noneMatch(prefix -> course.getCourseCode().startsWith(prefix)))
                 .collect(Collectors.toList());
     }
@@ -279,20 +294,16 @@ public class CourseService {
         return (int) Math.ceil(maxSemester.orElse(1.0));
     }
 
-    public Map<String, List<RecommendedCourseDto>> recommendCourses(User user, List<String> cartCourseCodes, List<String> dismissedCourseCodes) {
+    public Map<String, List<RecommendedCourseDto>> recommendCourses(User user, List<String> cartCourseCodes, List<String> dismissedCourseCodes, Integer semester) {
         int currentUserSemester = getCurrentSemester(user);
 
-        // 현재 월을 기준으로 학기 결정 (1-6월: 1학기, 7-12월: 2학기)
-        int currentMonth = java.time.LocalDate.now().getMonthValue();
+        // Use the semester from the dropdown, not the current month
         List<Integer> targetSemesters = new ArrayList<>();
-        if (currentMonth >= 7) { // 하반기 -> 2학기 또는 공통 과목 추천
-            targetSemesters.add(2);
-            targetSemesters.add(3);
-        } else { // 상반기 -> 1학기 또는 공통 과목 추천
-            targetSemesters.add(1);
-            targetSemesters.add(3);
+        if (semester != null) {
+            targetSemesters.add(semester); // 1 or 2
         }
-        targetSemesters.add(4); // semester가 4인 과목은 항상 포함
+        targetSemesters.add(3); // Always include common courses
+        targetSemesters.add(4); // Always include courses with no specific semester
 
         List<String> userMajorPrefixes = new ArrayList<>();
         if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) {
@@ -333,14 +344,26 @@ public class CourseService {
                                 .orElse(null);
 
                         if (course.getSemester() != null && course.getSemester() == 4) {
-                            return new RecommendedCourseDto(course, 0.01, 0, 0, null, majorName);
+                            return RecommendedCourseDto.builder()
+                                    .course(course)
+                                    .score(0.01)
+                                    .studentCount(0)
+                                    .averageProximityScore(0)
+                                    .majorName(majorName)
+                                    .build();
                         }
                         List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
                         double score = allTakes.stream()
                                 .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
                                 .sum();
                         double averageProximity = allTakes.isEmpty() ? 0 : score / allTakes.size();
-                        return new RecommendedCourseDto(course, score, allTakes.size(), averageProximity, null, majorName);
+                        return RecommendedCourseDto.builder()
+                                .course(course)
+                                .score(score)
+                                .studentCount(allTakes.size())
+                                .averageProximityScore(averageProximity)
+                                .majorName(majorName)
+                                .build();
                     })
                     .sorted(Comparator.comparingDouble(RecommendedCourseDto::getScore).reversed())
                     .limit(5)
@@ -375,7 +398,13 @@ public class CourseService {
                     .map(course -> {
                         String trackName = COURSE_CODE_TO_TRACK_NAME_MAP.get(course.getCourseCode());
                         int studentCount = semesterCourseRepository.findByCourseCode(course.getCourseCode()).size();
-                        return new RecommendedCourseDto(course, 0, studentCount, 0, trackName);
+                        return RecommendedCourseDto.builder()
+                                .course(course)
+                                .score(0)
+                                .studentCount(studentCount)
+                                .averageProximityScore(0)
+                                .trackName(trackName)
+                                .build();
                     })
                     .sorted(Comparator.comparingInt(RecommendedCourseDto::getStudentCount).reversed())
                     .limit(5)
@@ -392,7 +421,12 @@ public class CourseService {
                     .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
                     .map(course -> {
                         if (course.getSemester() != null && course.getSemester() == 4) {
-                            return new RecommendedCourseDto(course, 0.01, 0, 0);
+                            return RecommendedCourseDto.builder()
+                                    .course(course)
+                                    .score(0.01)
+                                    .studentCount(0)
+                                    .averageProximityScore(0)
+                                    .build();
                         }
                         List<SemesterCourse> allTakes;
                         if (useMajorFilteredRecommendations) {
@@ -404,7 +438,12 @@ public class CourseService {
                                 .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
                                 .sum();
                         double averageProximity = allTakes.isEmpty() ? 0 : score / allTakes.size();
-                        return new RecommendedCourseDto(course, score, allTakes.size(), averageProximity);
+                        return RecommendedCourseDto.builder()
+                                .course(course)
+                                .score(score)
+                                .studentCount(allTakes.size())
+                                .averageProximityScore(averageProximity)
+                                .build();
                     })
                     .sorted(Comparator.comparingDouble(RecommendedCourseDto::getScore).reversed())
                     .limit(5)
@@ -445,16 +484,16 @@ public class CourseService {
     }
 
     @Transactional
-    public SavedCourse addSavedCourse(String username, String courseCode, String courseName) {
+    public SavedCourse addSavedCourse(String username, String courseCode, String courseName, String targetSemester) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        if (savedCourseRepository.findByUser(user).size() >= 8) {
-            throw new IllegalStateException("장바구니에는 최대 8과목까지 담을 수 있습니다.");
+        if (savedCourseRepository.countByUserAndTargetSemester(user, targetSemester) >= 8) {
+            throw new IllegalStateException("한 학기에는 최대 8과목까지 담을 수 있습니다.");
         }
         if (savedCourseRepository.existsByUserAndCourseCode(user, courseCode)) {
             throw new IllegalStateException("이미 장바구니에 담긴 과목입니다.");
         }
-        SavedCourse savedCourse = new SavedCourse(user, courseCode, courseName);
+        SavedCourse savedCourse = new SavedCourse(user, courseCode, courseName, targetSemester);
         return savedCourseRepository.save(savedCourse);
     }
 

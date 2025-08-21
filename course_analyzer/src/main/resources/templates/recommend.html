@@ -136,11 +136,25 @@
             color: white;
             border-top-left-radius: 15px;
             border-top-right-radius: 15px;
+            gap: 10px;
         }
         .cart-header h3 {
             margin: 0;
             font-size: 18px;
             font-weight: 600;
+            flex-shrink: 0;
+        }
+        #cart-semester-filter {
+            flex-grow: 1;
+            text-align: right;
+        }
+        #cart-semester-select {
+            background-color: #555;
+            color: white;
+            border: 1px solid #777;
+            border-radius: 4px;
+            padding: 2px 5px;
+            font-size: 14px;
         }
         #close-cart-btn {
             background: none;
@@ -219,6 +233,17 @@
             </div>
         </div>
 
+    <div class="semester-select-container" style="text-align: center; margin: 20px 0; display: flex; justify-content: center; align-items: center; gap: 10px;">
+        <label for="year-select">담을 학기 선택:</label>
+        <select id="year-select" class="form-select" style="width: auto;">
+            <option th:each="year : ${futureYears}" th:value="${year}" th:text="${year} + '년'"></option>
+        </select>
+        <select id="semester-select" class="form-select" style="width: auto;">
+            <option value="1">1학기</option>
+            <option value="2">2학기</option>
+        </select>
+    </div>
+
     <div id="recommendation-results">
         <!-- Major Course Recommendations -->
         <h3>전공 과목 추천 (Top 5)</h3>
@@ -287,6 +312,9 @@
     <div id="cart-panel">
         <div class="cart-header">
             <h3>담은 과목</h3>
+            <div id="cart-semester-filter" style="display: none;">
+                <select id="cart-semester-select" class="form-select form-select-sm"></select>
+            </div>
             <button id="close-cart-btn">&times;</button>
         </div>
         <ul id="cart-items">
@@ -308,14 +336,20 @@
             const cartItemsList = document.getElementById('cart-items');
             const cartCount = document.getElementById('cart-count');
             const recommendationResults = document.getElementById('recommendation-results');
+            const cartSemesterFilter = document.getElementById('cart-semester-filter');
+            const cartSemesterSelect = document.getElementById('cart-semester-select');
+            const yearSelect = document.getElementById('year-select');
+            const semesterSelect = document.getElementById('semester-select');
             
             let cart = [];
             let dismissedCourses = [];
             
             async function fetchRecommendations() {
+                const selectedSemester = parseInt(semesterSelect.value, 10);
                 const payload = {
                     cartCourseCodes: cart.map(item => item.code),
-                    dismissedCourseCodes: dismissedCourses
+                    dismissedCourseCodes: dismissedCourses,
+                    semester: selectedSemester
                 };
 
                 try {
@@ -326,7 +360,6 @@
                     });
                     const html = await response.text();
                     recommendationResults.innerHTML = html;
-                    // Re-initialize tooltips after content is replaced
                     var newTooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
                     newTooltipTriggerList.map(function (tooltipTriggerEl) {
                         return new bootstrap.Tooltip(tooltipTriggerEl);
@@ -339,30 +372,31 @@
             async function initializeCart() {
                 try {
                     const response = await fetch('/api/saved-courses');
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch saved courses.');
-                    }
+                    if (!response.ok) throw new Error('Failed to fetch saved courses.');
+                    
                     const savedCourses = await response.json();
-                    cart = savedCourses.map(item => ({ code: item.courseCode, name: item.courseName }));
+                    cart = savedCourses.map(item => ({ 
+                        code: item.courseCode, 
+                        name: item.courseName,
+                        targetSemester: item.targetSemester
+                    }));
+                    
                     updateCart();
                     renderCart();
-                    fetchRecommendations(); // Fetch recommendations after cart is loaded
+                    fetchRecommendations(); // Initial fetch
                 } catch (error) {
                     console.error('Error initializing cart:', error);
                     alert('담은 과목 목록을 불러오는 데 실패했습니다.');
-                    fetchRecommendations(); // Fetch recommendations even if cart fails
+                    fetchRecommendations(); // Still fetch recommendations
                 }
             }
             
             cartIcon.addEventListener('click', () => {
                 cartPanel.classList.add('open');
-                renderCart();
+                renderCart(cartSemesterSelect.value || 'All');
             });
             
-            closeCartBtn.addEventListener('click', () => {
-                cartPanel.classList.remove('open');
-            });
-
+            closeCartBtn.addEventListener('click', () => cartPanel.classList.remove('open'));
             document.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape' && cartPanel.classList.contains('open')) {
                     cartPanel.classList.remove('open');
@@ -386,8 +420,13 @@
             });
             
             async function addToCart(course) {
-                if (cart.length >= 8) {
-                    alert('장바구니에는 최대 8개 과목만 담을 수 있습니다.');
+                const year = yearSelect.value;
+                const semester = semesterSelect.value;
+                const targetSemester = `${year}년 ${semester}학기`;
+
+                const itemsInSemester = cart.filter(item => item.targetSemester === targetSemester).length;
+                if (itemsInSemester >= 8) {
+                    alert('한 학기에는 최대 8개 과목만 담을 수 있습니다.');
                     return;
                 }
                 if (cart.some(item => item.code === course.code)) {
@@ -398,25 +437,24 @@
                 try {
                     const response = await fetch(`/api/saved-courses/${course.code}`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ courseName: course.name })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            courseName: course.name,
+                            targetSemester: targetSemester 
+                        })
                     });
 
                     if (response.status === 409) {
                         alert(await response.text());
                         return;
                     }
-                    if (!response.ok) {
-                        throw new Error('Failed to add course to cart.');
-                    }
+                    if (!response.ok) throw new Error('Failed to add course to cart.');
 
-                    cart.push(course);
+                    cart.push({ ...course, targetSemester: targetSemester });
                     updateCart();
-                    renderCart();
+                    renderCart(cartSemesterSelect.value || 'All');
                     fetchRecommendations();
-                    const cartIcon = document.getElementById('cart-icon');
+                    
                     cartIcon.style.transform = 'scale(1.2)';
                     setTimeout(() => { cartIcon.style.transform = 'scale(1)'; }, 200);
 
@@ -428,17 +466,12 @@
             
             async function removeFromCart(courseCode) {
                 try {
-                    const response = await fetch(`/api/saved-courses/${courseCode}`, {
-                        method: 'DELETE'
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to remove course from cart.');
-                    }
+                    const response = await fetch(`/api/saved-courses/${courseCode}`, { method: 'DELETE' });
+                    if (!response.ok) throw new Error('Failed to remove course from cart.');
 
                     cart = cart.filter(item => item.code !== courseCode);
                     updateCart();
-                    renderCart();
+                    renderCart(cartSemesterSelect.value || 'All');
                 } catch (error) {
                     console.error('Error removing from cart:', error);
                     alert('과목을 삭제하는 중 오류가 발생했습니다.');
@@ -450,18 +483,54 @@
                 cartCount.style.display = cart.length > 0 ? 'flex' : 'none';
             }
             
-            function renderCart() {
+            function renderCart(filterSemester = 'All') {
+                const currentFilter = cartSemesterSelect.value || filterSemester;
+                cartSemesterSelect.innerHTML = '';
+                const uniqueSemesters = [...new Set(cart.map(item => item.targetSemester).filter(s => s))].sort();
+
+                if (uniqueSemesters.length > 0) {
+                    cartSemesterFilter.style.display = 'block';
+                    
+                    const allOption = document.createElement('option');
+                    allOption.value = 'All';
+                    allOption.textContent = '전체 학기';
+                    cartSemesterSelect.appendChild(allOption);
+
+                    uniqueSemesters.forEach(semester => {
+                        const option = document.createElement('option');
+                        option.value = semester;
+                        option.textContent = semester;
+                        cartSemesterSelect.appendChild(option);
+                    });
+                    
+                    cartSemesterSelect.value = uniqueSemesters.includes(currentFilter) ? currentFilter : 'All';
+                } else {
+                    cartSemesterFilter.style.display = 'none';
+                }
+
+                const finalFilter = cartSemesterSelect.value;
                 cartItemsList.innerHTML = '';
-                if (cart.length === 0) {
-                    cartItemsList.innerHTML = '<li class="empty-cart-msg">담은 과목이 없습니다.</li>';
+                const itemsToRender = finalFilter === 'All' 
+                    ? cart 
+                    : cart.filter(item => item.targetSemester === finalFilter);
+
+                if (itemsToRender.length === 0) {
+                    cartItemsList.innerHTML = cart.length === 0 
+                        ? '<li class="empty-cart-msg">담은 과목이 없습니다.</li>'
+                        : `<li class="empty-cart-msg">'${finalFilter}'에 담은 과목이 없습니다.</li>`;
                     return;
                 }
-                cart.forEach(item => {
+
+                itemsToRender.forEach(item => {
                     const li = document.createElement('li');
+                    const semesterLabel = (finalFilter === 'All' && item.targetSemester) 
+                        ? `<span style="font-size: 0.8em; color: #aaa; margin-left: 8px;">${item.targetSemester}</span>` 
+                        : '';
                     li.innerHTML = `
                         <div class="course-details">
                             <span class="name">${item.name}</span>
                             <span class="code">(${item.code})</span>
+                            ${semesterLabel}
                         </div>
                         <button class="remove-item-btn" data-course-code="${item.code}">삭제</button>
                     `;
@@ -469,10 +538,11 @@
                 });
             }
             
+            semesterSelect.addEventListener('change', fetchRecommendations);
+            cartSemesterSelect.addEventListener('change', () => renderCart(cartSemesterSelect.value));
             cartItemsList.addEventListener('click', event => {
                 if (event.target && event.target.classList.contains('remove-item-btn')) {
-                    const courseCode = event.target.dataset.courseCode;
-                    removeFromCart(courseCode);
+                    removeFromCart(event.target.dataset.courseCode);
                 }
             });
             

@@ -1,10 +1,14 @@
 package com.example.course_analyzer;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 
-@Data
+@Getter
+@Setter
 public class RecommendationRequestDto {
     private List<String> cartCourseCodes;
     private List<String> dismissedCourseCodes;
+    private Integer semester; // 1 or 2
 }

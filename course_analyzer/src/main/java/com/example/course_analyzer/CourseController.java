@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -92,20 +93,14 @@ public class CourseController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
 
-        // 1. Fetch taken courses (semester > 0)
+        // 1. Fetch and process completed courses
         List<SemesterCourse> takenCourses = semesterCourseRepository.findByUser(user).stream()
                 .filter(c -> c.getSemester() > 0)
                 .collect(Collectors.toList());
 
-        List<String> takenCourseCodes = takenCourses.stream()
-                .map(SemesterCourse::getCourseCode)
-                .collect(Collectors.toList());
-        model.addAttribute("takenCourseCodes", takenCourseCodes);
-
-        // 2. Group taken courses by semester
         Map<Double, List<Course>> coursesBySemesterNumber = takenCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
-                        java.util.TreeMap::new,
+                        java.util.TreeMap::new, // TreeMap automatically sorts by key (Double)
                         Collectors.mapping(sc -> {
                             String courseCode = sc.getCourseCode();
                             String actualCourseName = courseMappingRepository.findById(courseCode)
@@ -114,7 +109,10 @@ public class CourseController {
                             return new Course(String.valueOf(sc.getSemester()), courseCode, actualCourseName, sc.getGrade());
                         }, Collectors.toList())));
 
+        // This map will hold the final, ordered list for the view
         Map<String, List<Course>> coursesForModel = new LinkedHashMap<>();
+
+        // Add completed semesters to the final map, preserving their sorted order
         coursesBySemesterNumber.forEach((semester, courses) -> {
             String semesterKey = (semester % 1 == 0)
                 ? String.format("%.0f학기", semester)
@@ -122,23 +120,26 @@ public class CourseController {
             coursesForModel.put(semesterKey, courses);
         });
 
-        // 3. Fetch saved courses (cart items)
+        // 2. Fetch and process planned courses (from cart)
         List<SavedCourse> savedCourses = courseService.getSavedCourses(user.getUsername());
-        
-        // 4. Create and add the "Next Semester (Cart)" section
-        double lastSemester = coursesBySemesterNumber.isEmpty() ? 0.0 : ((java.util.TreeMap<Double, List<Course>>) coursesBySemesterNumber).lastKey();
-        double nextSemesterNum = Math.floor(lastSemester) + 1;
-        String cartSemesterName = String.format("%.0f학기 (장바구니)", nextSemesterNum);
+        Map<String, List<SavedCourse>> savedCoursesBySemester = savedCourses.stream()
+                .filter(sc -> sc.getTargetSemester() != null && !sc.getTargetSemester().isEmpty())
+                .collect(Collectors.groupingBy(SavedCourse::getTargetSemester));
 
-        List<Course> cartCoursesForModel = savedCourses.stream()
-                .map(sc -> new Course(null, sc.getCourseCode(), sc.getCourseName(), "담은 과목"))
-                .collect(Collectors.toList());
+        // Sort the future semester keys alphabetically (e.g., "2025년 1학기", "2025년 2학기")
+        List<String> sortedFutureSemesters = savedCoursesBySemester.keySet().stream().sorted().collect(Collectors.toList());
 
-        coursesForModel.put(cartSemesterName, cartCoursesForModel);
+        // Add planned semesters to the final map in their sorted order
+        for (String semester : sortedFutureSemesters) {
+            String semesterKey = String.format("%s (계획)", semester);
+            List<Course> courseViewModels = savedCoursesBySemester.get(semester).stream()
+                    .map(sc -> new Course(null, sc.getCourseCode(), sc.getCourseName(), "담은 과목"))
+                    .collect(Collectors.toList());
+            coursesForModel.put(semesterKey, courseViewModels);
+        }
 
         model.addAttribute("coursesBySemester", coursesForModel);
-        // Also add savedCourses for the floating cart
-        model.addAttribute("savedCourses", savedCourses);
+        model.addAttribute("savedCourses", savedCourses); // For the floating cart
 
         return "results";
     }
@@ -150,10 +151,9 @@ public class CourseController {
 
     @GetMapping("/recommend")
     public String showRecommendPage(Model model) {
-        // Return the initial page structure. The content will be loaded dynamically.
         model.addAttribute("title", "과목 추천");
-        // Provide empty maps to prevent errors on initial render
         model.addAttribute("recommendedCoursesMap", Map.of("major", new ArrayList<>(), "ge", new ArrayList<>()));
+        model.addAttribute("futureYears", generateFutureYears());
         return "recommend";
     }
 
@@ -164,8 +164,9 @@ public class CourseController {
         
         List<String> cartCourseCodes = requestDto.getCartCourseCodes() == null ? new ArrayList<>() : requestDto.getCartCourseCodes();
         List<String> dismissedCourseCodes = requestDto.getDismissedCourseCodes() == null ? new ArrayList<>() : requestDto.getDismissedCourseCodes();
+        Integer semester = requestDto.getSemester();
 
-        Map<String, List<RecommendedCourseDto>> recommendedCoursesMap = courseService.recommendCourses(user, cartCourseCodes, dismissedCourseCodes);
+        Map<String, List<RecommendedCourseDto>> recommendedCoursesMap = courseService.recommendCourses(user, cartCourseCodes, dismissedCourseCodes, semester);
         
         model.addAttribute("title", "과목 추천");
         model.addAttribute("recommendedCoursesMap", recommendedCoursesMap);
@@ -175,7 +176,9 @@ public class CourseController {
     }
 
     @GetMapping("/all-courses")
-    public String showAllCourses(@RequestParam(value = "major", required = false) String major, Model model) {
+    public String showAllCourses(@RequestParam(value = "major", required = false) String major,
+                                 @RequestParam(value = "semester", required = false) Integer semester,
+                                 Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
 
@@ -185,8 +188,8 @@ public class CourseController {
         if (user.getMajor3() != null && !user.getMajor3().isEmpty()) userMajors.add(user.getMajor3());
         model.addAttribute("userMajors", userMajors);
 
-        if ("NonMajor".equals(major)) { // New condition for "비전공"
-            List<CourseMapping> nonMajorCourseMappings = courseService.getNonMajorCourses(user);
+        if ("NonMajor".equals(major)) {
+            List<CourseMapping> nonMajorCourseMappings = courseService.getNonMajorCourses(user, semester);
             List<CourseStatDto> courses = nonMajorCourseMappings.stream()
                     .map(course -> new CourseStatDto(
                             course.getCourseCode(),
@@ -196,13 +199,13 @@ public class CourseController {
                     .collect(Collectors.toList());
             model.addAttribute("courses", courses);
             model.addAttribute("selectedMajor", "NonMajor");
-        } else if (major != null && !major.isEmpty() && !"All".equals(major)) { // Existing major filtering logic
+        } else if (major != null && !major.isEmpty() && !"All".equals(major)) {
             String majorPrefix = courseService.getCoursePrefixForMajor(major);
-            List<CourseStatDto> courses = courseService.getCoursesByMajor(majorPrefix);
+            List<CourseStatDto> courses = courseService.getCoursesByMajor(majorPrefix, semester);
             model.addAttribute("courses", courses);
             model.addAttribute("selectedMajor", major);
-        } else { // Default case when major is "All" or null/empty
-            List<CourseMapping> allCourseMappings = courseService.getAllCourses();
+        } else {
+            List<CourseMapping> allCourseMappings = courseService.getAllCourses(); // Note: getAllCourses is not filtered by semester yet. This might be a future improvement.
             List<CourseStatDto> courses = allCourseMappings.stream()
                     .map(course -> new CourseStatDto(
                             course.getCourseCode(),
@@ -214,6 +217,8 @@ public class CourseController {
             model.addAttribute("selectedMajor", "All");
         }
 
+        model.addAttribute("futureYears", generateFutureYears());
+        model.addAttribute("selectedSemester", semester); // Pass the selected semester back to the view
         return "all-courses";
     }
 
@@ -252,8 +257,9 @@ public class CourseController {
     public ResponseEntity<?> addSavedCourse(@PathVariable String courseCode, @RequestBody Map<String, String> payload, Authentication authentication) {
         User user = getUserFromAuthentication(authentication);
         String courseName = payload.get("courseName");
+        String targetSemester = payload.get("targetSemester");
         try {
-            SavedCourse savedCourse = courseService.addSavedCourse(user.getUsername(), courseCode, courseName);
+            SavedCourse savedCourse = courseService.addSavedCourse(user.getUsername(), courseCode, courseName, targetSemester);
             return ResponseEntity.status(HttpStatus.CREATED).body(savedCourse);
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
@@ -283,5 +289,14 @@ public class CourseController {
             return userRepository.findByUsername(username)
                     .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
         }
+    }
+
+    private List<Integer> generateFutureYears() {
+        List<Integer> years = new ArrayList<>();
+        int currentYear = LocalDate.now().getYear();
+        for (int i = 0; i < 5; i++) {
+            years.add(currentYear + i);
+        }
+        return years;
     }
 }
