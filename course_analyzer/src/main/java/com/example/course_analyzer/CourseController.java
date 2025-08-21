@@ -151,9 +151,12 @@ public class CourseController {
 
     @GetMapping("/recommend")
     public String showRecommendPage(Model model) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = getUserFromAuthentication(authentication);
+
         model.addAttribute("title", "과목 추천");
         model.addAttribute("recommendedCoursesMap", Map.of("major", new ArrayList<>(), "ge", new ArrayList<>()));
-        model.addAttribute("futureYears", generateFutureYears());
+        model.addAllAttributes(generateFutureSemesterOptions(user));
         return "recommend";
     }
 
@@ -217,7 +220,7 @@ public class CourseController {
             model.addAttribute("selectedMajor", "All");
         }
 
-        model.addAttribute("futureYears", generateFutureYears());
+        model.addAllAttributes(generateFutureSemesterOptions(user));
         model.addAttribute("selectedSemester", semester); // Pass the selected semester back to the view
         return "all-courses";
     }
@@ -291,12 +294,40 @@ public class CourseController {
         }
     }
 
-    private List<Integer> generateFutureYears() {
-        List<Integer> years = new ArrayList<>();
-        int currentYear = LocalDate.now().getYear();
-        for (int i = 0; i < 5; i++) {
-            years.add(currentYear + i);
+    private Map<String, Object> generateFutureSemesterOptions(User user) {
+        int startYear;
+        int startSemester;
+
+        String lastSemester = user.getLastSemester(); // e.g., "2025-2"
+
+        if (lastSemester != null && lastSemester.matches("\\d{4}-[12SW]")) {
+            String[] parts = lastSemester.split("-");
+            int lastYear = Integer.parseInt(parts[0]);
+            String lastSem = parts[1];
+
+            if (lastSem.equals("2") || lastSem.equals("W")) {
+                startYear = lastYear + 1;
+                startSemester = 1;
+            } else { // "1" or "S"
+                startYear = lastYear;
+                startSemester = 2;
+            }
+        } else {
+            // Fallback for new users or users without lastSemester data
+            LocalDate today = LocalDate.now();
+            startYear = today.getYear();
+            int currentMonth = today.getMonthValue();
+            startSemester = (currentMonth >= 3 && currentMonth <= 8) ? 2 : 1;
+            if (startSemester == 1 && currentMonth > 8) {
+                startYear++;
+            }
         }
-        return years;
+
+        List<Integer> years = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            years.add(startYear + i);
+        }
+
+        return Map.of("futureYears", years, "startSemester", startSemester);
     }
 }

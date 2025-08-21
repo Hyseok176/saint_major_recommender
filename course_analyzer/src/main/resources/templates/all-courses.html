@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>전체 과목</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
@@ -248,21 +249,14 @@
             </div>
         </div>
         <div class="semester-select-container" style="text-align: center; margin: 20px 0; display: flex; justify-content: center; align-items: center; gap: 10px;">
-            <label for="semester-filter-select">개설 학기 필터:</label>
-            <select id="semester-filter-select" class="form-select" style="width: auto;">
-                <option value="">전체 학기</option>
-                <option value="1" th:selected="${selectedSemester != null and selectedSemester == 1}">1학기</option>
-                <option value="2" th:selected="${selectedSemester != null and selectedSemester == 2}">2학기</option>
-            </select>
-        </div>
-        <div class="semester-select-container" style="text-align: center; margin: 20px 0; display: flex; justify-content: center; align-items: center; gap: 10px;">
             <label for="year-select">담을 학기 선택:</label>
             <select id="year-select" class="form-select" style="width: auto;">
                 <option th:each="year : ${futureYears}" th:value="${year}" th:text="${year} + '년'"></option>
             </select>
             <select id="semester-select" class="form-select" style="width: auto;">
-                <option value="1">1학기</option>
-                <option value="2">2학기</option>
+                <option value="">전체</option>
+                <option value="1" th:selected="${selectedSemester != null and selectedSemester == 1}">1학기</option>
+                <option value="2" th:selected="${selectedSemester != null and selectedSemester == 2}">2학기</option>
             </select>
         </div>
         <div class="filter-buttons" style="margin-bottom: 20px;">
@@ -313,9 +307,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Semester Filter Logic
-            const semesterFilterSelect = document.getElementById('semester-filter-select');
-            semesterFilterSelect.addEventListener('change', function() {
+            // Semester Filter Logic (now tied to the main semester dropdown)
+            const semesterSelect = document.getElementById('semester-select');
+            semesterSelect.addEventListener('change', function() {
                 const selectedSemester = this.value;
                 const currentUrl = new URL(window.location.href);
                 if (selectedSemester) {
