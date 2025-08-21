@@ -169,6 +169,7 @@ public class CourseController {
         
         model.addAttribute("title", "과목 추천");
         model.addAttribute("recommendedCoursesMap", recommendedCoursesMap);
+        model.addAttribute("isEssentialTrackRecommendation", courseService.hasUncompletedTracks(user));
         
         return "recommend :: #recommendation-results";
     }

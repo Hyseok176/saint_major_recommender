@@ -20,8 +20,40 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import java.util.Collections;
+
 @Service
 public class CourseService {
+
+    private static final Map<Integer, List<String>> GE_TRACKS;
+    private static final Map<String, String> COURSE_CODE_TO_TRACK_NAME_MAP;
+
+    static {
+        Map<Integer, List<String>> tracks = new HashMap<>();
+        tracks.put(1, List.of("HFS2001", "HFS2002", "HFS2003", "HFU4012", "HFU4023"));
+        tracks.put(2, List.of("ETS2001", "ETS2002", "ETS2004", "CHS2002", "CHS2003", "CHS2004", "HSS3032"));
+        tracks.put(3, List.of("SHS2001", "SHS2002", "SHS2003", "SHS2007", "SHS2005"));
+        tracks.put(4, List.of("STS2001", "STS2002", "STU4011", "STS2011", "STS2012", "STS2010", "STS2005", "STS2015"));
+        GE_TRACKS = Collections.unmodifiableMap(tracks);
+
+        Map<Integer, String> trackNames = Map.of(
+            1, "인간과 신앙",
+            2, "인간과 사상",
+            3, "인간과 사회",
+            4, "인간과 과학&AI"
+        );
+
+        Map<String, String> reverseMap = new HashMap<>();
+        for (Map.Entry<Integer, List<String>> entry : GE_TRACKS.entrySet()) {
+            Integer trackNumber = entry.getKey();
+            String trackName = trackNames.get(trackNumber);
+            String formattedTrackInfo = String.format("- %d트랙 %s", trackNumber, trackName);
+            for (String courseCode : entry.getValue()) {
+                reverseMap.put(courseCode, formattedTrackInfo);
+            }
+        }
+        COURSE_CODE_TO_TRACK_NAME_MAP = Collections.unmodifiableMap(reverseMap);
+    }
 
     @Autowired
     private SemesterCourseRepository semesterCourseRepository;
@@ -276,8 +308,79 @@ public class CourseService {
         // Major Recommendations
         List<RecommendedCourseDto> majorRecommendations = new ArrayList<>();
         if (!userMajorPrefixes.isEmpty()) {
+            // Create a map from prefix to major name for easy lookup
+            Map<String, String> prefixToMajorNameMap = new HashMap<>();
+            if (user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택")) prefixToMajorNameMap.put(getCoursePrefixForMajor(user.getMajor1()), user.getMajor1());
+            if (user.getMajor2() != null && !user.getMajor2().isEmpty() && !user.getMajor2().equals("미선택")) prefixToMajorNameMap.put(getCoursePrefixForMajor(user.getMajor2()), user.getMajor2());
+            if (user.getMajor3() != null && !user.getMajor3().isEmpty() && !user.getMajor3().equals("미선택")) prefixToMajorNameMap.put(getCoursePrefixForMajor(user.getMajor3()), user.getMajor3());
+
             majorRecommendations = allCourses.stream()
                     .filter(course -> userMajorPrefixes.stream().anyMatch(prefix -> !prefix.isEmpty() && course.getCourseCode().startsWith(prefix)))
+                    .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
+                    .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
+                    .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
+                    .map(course -> {
+                        String majorName = prefixToMajorNameMap.entrySet().stream()
+                                .filter(entry -> course.getCourseCode().startsWith(entry.getKey()))
+                                .map(Map.Entry::getValue)
+                                .findFirst()
+                                .orElse(null);
+
+                        if (course.getSemester() != null && course.getSemester() == 4) {
+                            return new RecommendedCourseDto(course, 0.01, 0, 0, null, majorName);
+                        }
+                        List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
+                        double score = allTakes.stream()
+                                .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
+                                .sum();
+                        double averageProximity = allTakes.isEmpty() ? 0 : score / allTakes.size();
+                        return new RecommendedCourseDto(course, score, allTakes.size(), averageProximity, null, majorName);
+                    })
+                    .sorted(Comparator.comparingDouble(RecommendedCourseDto::getScore).reversed())
+                    .limit(5)
+                    .collect(Collectors.toList());
+        }
+
+        // GE Recommendations
+        List<RecommendedCourseDto> geRecommendations;
+
+        // 1. Find uncompleted tracks using the new exact course codes
+        List<Integer> uncompletedTracks = new ArrayList<>();
+        for (Map.Entry<Integer, List<String>> entry : GE_TRACKS.entrySet()) {
+            boolean completed = userTakenCourseCodes.stream()
+                    .anyMatch(takenCode -> entry.getValue().contains(takenCode));
+            if (!completed) {
+                uncompletedTracks.add(entry.getKey());
+            }
+        }
+
+        // 2. Generate recommendations based on track completion
+        if (!uncompletedTracks.isEmpty()) {
+            // Case 1: Recommend from uncompleted tracks
+            List<String> codesForUncompletedTracks = uncompletedTracks.stream()
+                    .flatMap(trackNum -> GE_TRACKS.get(trackNum).stream())
+                    .collect(Collectors.toList());
+
+            geRecommendations = allCourses.stream()
+                    .filter(course -> codesForUncompletedTracks.contains(course.getCourseCode()))
+                    .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
+                    .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
+                    .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
+                    .map(course -> {
+                        String trackName = COURSE_CODE_TO_TRACK_NAME_MAP.get(course.getCourseCode());
+                        int studentCount = semesterCourseRepository.findByCourseCode(course.getCourseCode()).size();
+                        return new RecommendedCourseDto(course, 0, studentCount, 0, trackName);
+                    })
+                    .sorted(Comparator.comparingInt(RecommendedCourseDto::getStudentCount).reversed())
+                    .limit(5)
+                    .collect(Collectors.toList());
+        } else {
+            // Case 2: All tracks completed, use original logic
+            List<String> allMajorPrefixes = List.of("MAT", "PHY", "CHM", "BIO", "EEE", "MEE", "CSE", "CBE", "SSE", "AIE", "ECO", "MGT", "EDU");
+            final boolean useMajorFilteredRecommendations = user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택");
+
+            geRecommendations = allCourses.stream()
+                    .filter(course -> allMajorPrefixes.stream().noneMatch(prefix -> course.getCourseCode().startsWith(prefix)))
                     .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
                     .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
                     .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
@@ -285,7 +388,12 @@ public class CourseService {
                         if (course.getSemester() != null && course.getSemester() == 4) {
                             return new RecommendedCourseDto(course, 0.01, 0, 0);
                         }
-                        List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
+                        List<SemesterCourse> allTakes;
+                        if (useMajorFilteredRecommendations) {
+                            allTakes = semesterCourseRepository.findByCourseCodeAndUserMajor1(course.getCourseCode(), user.getMajor1());
+                        } else {
+                            allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
+                        }
                         double score = allTakes.stream()
                                 .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
                                 .sum();
@@ -296,35 +404,6 @@ public class CourseService {
                     .limit(5)
                     .collect(Collectors.toList());
         }
-
-        // GE Recommendations
-        List<String> allMajorPrefixes = List.of("MAT", "PHY", "CHM", "BIO", "EEE", "MEE", "CSE", "CBE", "SSE", "AIE", "ECO", "MGT", "EDU");
-        final boolean useMajorFilteredRecommendations = user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택");
-
-        List<RecommendedCourseDto> geRecommendations = allCourses.stream()
-                .filter(course -> allMajorPrefixes.stream().noneMatch(prefix -> course.getCourseCode().startsWith(prefix)))
-                .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
-                .filter(course -> !cartCourseCodes.contains(course.getCourseCode()))
-                .filter(course -> !dismissedCourseCodes.contains(course.getCourseCode()))
-                .map(course -> {
-                    if (course.getSemester() != null && course.getSemester() == 4) {
-                        return new RecommendedCourseDto(course, 0.01, 0, 0);
-                    }
-                    List<SemesterCourse> allTakes;
-                    if (useMajorFilteredRecommendations) {
-                        allTakes = semesterCourseRepository.findByCourseCodeAndUserMajor1(course.getCourseCode(), user.getMajor1());
-                    } else {
-                        allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
-                    }
-                    double score = allTakes.stream()
-                            .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
-                            .sum();
-                    double averageProximity = allTakes.isEmpty() ? 0 : score / allTakes.size();
-                    return new RecommendedCourseDto(course, score, allTakes.size(), averageProximity);
-                })
-                .sorted(Comparator.comparingDouble(RecommendedCourseDto::getScore).reversed())
-                .limit(5)
-                .collect(Collectors.toList());
 
         Map<String, List<RecommendedCourseDto>> recommendationsMap = new HashMap<>();
         recommendationsMap.put("major", majorRecommendations);
@@ -378,5 +457,20 @@ public class CourseService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
         savedCourseRepository.deleteByUserAndCourseCode(user, courseCode);
+    }
+
+    public boolean hasUncompletedTracks(User user) {
+        List<String> userTakenCourseCodes = semesterCourseRepository.findByUser(user).stream()
+                .map(SemesterCourse::getCourseCode)
+                .collect(Collectors.toList());
+
+        for (Map.Entry<Integer, List<String>> entry : GE_TRACKS.entrySet()) {
+            boolean completed = userTakenCourseCodes.stream()
+                    .anyMatch(takenCode -> entry.getValue().contains(takenCode));
+            if (!completed) {
+                return true; // Found an uncompleted track
+            }
+        }
+        return false; // All tracks completed
     }
 }

@@ -230,6 +230,7 @@
                 <li th:each="rec : ${recommendedCoursesMap.major}">
                     <span class="course-info">
                         <span th:text="${rec.course.courseName} + ' (' + ${rec.course.courseCode} + ')'"></span>
+                        <span th:if="${rec.majorName != null}" th:text="'- ' + ${rec.majorName}" style="color: grey; font-size: 0.9em; margin-left: 8px;"></span>
                         <span th:if="${rec.course.semester == 4}" data-bs-toggle="tooltip" data-bs-placement="top" title="최근에 열린 적 없는 과목입니다." style="cursor: help; color: #ffc107; margin-left: 5px;">⚠️</span>
                     </span>
                     <i class="fas fa-info-circle info-icon"
@@ -247,7 +248,7 @@
         </div>
 
         <!-- GE Course Recommendations -->
-        <h3 style="margin-top: 40px;">교양 과목 추천 (Top 5)</h3>
+        <h3 style="margin-top: 40px;" th:text="${isEssentialTrackRecommendation} ? '필수 교양 트랙 추천 (Top 5)' : '교양 과목 추천 (Top 5)'">교양 과목 추천 (Top 5)</h3>
         <div th:if="${recommendedCoursesMap.ge.isEmpty()}">
             <p>추천할 교양 과목이 없습니다.</p>
         </div>
@@ -256,6 +257,7 @@
                 <li th:each="rec : ${recommendedCoursesMap.ge}">
                     <span class="course-info">
                         <span th:text="${rec.course.courseName} + ' (' + ${rec.course.courseCode} + ')'"></span>
+                        <span th:if="${rec.trackName != null}" th:text="${rec.trackName}" style="color: grey; font-size: 0.9em; margin-left: 8px;"></span>
                         <span th:if="${rec.course.semester == 4}" data-bs-toggle="tooltip" data-bs-placement="top" title="최근에 열린 적 없는 과목입니다." style="cursor: help; color: #ffc107; margin-left: 5px;">⚠️</span>
                     </span>
                      <i class="fas fa-info-circle info-icon"
