@@ -76,9 +76,12 @@ public class CourseService {
 
         FileAnalysisResult analysisResult = analyzeFile(file.getInputStream(), user.getUsername(), ipAddress);
         List<Course> rawCourses = analysisResult.getRawCourses();
-        Map<String, List<Course>> coursesBySemester = groupAndFormatCourses(rawCourses);
+        TranscriptParsingResult parsingResult = groupAndFormatCourses(rawCourses);
 
-        saveCoursesToDatabase(user, coursesBySemester);
+        user.setLastSemester(parsingResult.getLastSemester());
+        userRepository.save(user); // Save user with updated last semester
+
+        saveCoursesToDatabase(user, parsingResult.getCoursesBySemester());
     }
 
     private FileAnalysisResult analyzeFile(InputStream inputStream, String userId, String ipAddress) throws IOException {
@@ -129,7 +132,7 @@ public class CourseService {
         return new FileAnalysisResult(rawCourses, majorInfo);
     }
 
-    public Map<String, List<Course>> groupAndFormatCourses(List<Course> rawCourses) {
+    public TranscriptParsingResult groupAndFormatCourses(List<Course> rawCourses) {
         Map<String, Course> earliestCourseInstances = new HashMap<>();
         rawCourses.sort(Comparator.comparing(course -> new SemesterInfo(course.getSemester())));
 
@@ -174,7 +177,9 @@ public class CourseService {
 
         coursesByFormattedSemester.forEach((semester, courseList) -> courseList.sort(Comparator.comparing(Course::getCourseCode)));
 
-        return coursesByFormattedSemester;
+        String lastSemesterString = processedCourses.isEmpty() ? null : processedCourses.get(processedCourses.size() - 1).getSemester();
+
+        return new TranscriptParsingResult(coursesByFormattedSemester, lastSemesterString);
     }
 
     @Transactional

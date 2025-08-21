@@ -43,12 +43,14 @@ public class User {
     private String major2;
     private String major3;
 
+    private String lastSemester;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt; // Timestamp for registration order
 
     @Builder
-    public User(String username, String password, String nickname, String email, String provider, String providerId, String major1, String major2, String major3) {
+    public User(String username, String password, String nickname, String email, String provider, String providerId, String major1, String major2, String major3, String lastSemester) {
         this.username = username;
         this.password = password;
         this.nickname = nickname;
@@ -58,6 +60,7 @@ public class User {
         this.major1 = major1;
         this.major2 = major2;
         this.major3 = major3;
+        this.lastSemester = lastSemester;
     }
 
     public User update(String nickname) {
