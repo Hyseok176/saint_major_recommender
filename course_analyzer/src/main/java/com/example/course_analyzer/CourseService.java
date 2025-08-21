@@ -299,6 +299,8 @@ public class CourseService {
 
         // GE Recommendations
         List<String> allMajorPrefixes = List.of("MAT", "PHY", "CHM", "BIO", "EEE", "MEE", "CSE", "CBE", "SSE", "AIE", "ECO", "MGT", "EDU");
+        final boolean useMajorFilteredRecommendations = user.getMajor1() != null && !user.getMajor1().isEmpty() && !user.getMajor1().equals("미선택");
+
         List<RecommendedCourseDto> geRecommendations = allCourses.stream()
                 .filter(course -> allMajorPrefixes.stream().noneMatch(prefix -> course.getCourseCode().startsWith(prefix)))
                 .filter(course -> !userTakenCourseCodes.contains(course.getCourseCode()))
@@ -308,7 +310,12 @@ public class CourseService {
                     if (course.getSemester() != null && course.getSemester() == 4) {
                         return new RecommendedCourseDto(course, 0.01, 0, 0);
                     }
-                    List<SemesterCourse> allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
+                    List<SemesterCourse> allTakes;
+                    if (useMajorFilteredRecommendations) {
+                        allTakes = semesterCourseRepository.findByCourseCodeAndUserMajor1(course.getCourseCode(), user.getMajor1());
+                    } else {
+                        allTakes = semesterCourseRepository.findByCourseCode(course.getCourseCode());
+                    }
                     double score = allTakes.stream()
                             .mapToDouble(sc -> 1.0 / (1.0 + Math.abs(currentUserSemester - sc.getSemester())))
                             .sum();

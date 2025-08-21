@@ -263,7 +263,7 @@
                        data-bs-placement="top"
                        data-bs-html="true"
                        th:title="'최종 점수: ' + ${#numbers.formatDecimal(rec.score, 1, 2)} + '<br>' +
-                                  '총 수강 인원: ' + ${rec.studentCount} + '<br>' +
+                                  '총 수강 인원(1전공 동일): ' + ${rec.studentCount} + '<br>' +
                                   '평균 학기 근접도: ' + ${#numbers.formatDecimal(rec.averageProximityScore, 1, 2)}">
                     </i>
                     <button class="add-to-cart-btn" th:attr="data-course-code=${rec.course.courseCode}, data-course-name=${rec.course.courseName}">담기</button>
