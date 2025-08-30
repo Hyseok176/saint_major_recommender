@@ -16,9 +16,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,6 +43,62 @@ public class CourseController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private CrawlerService crawlerService;
+
+    @GetMapping("/test-crawler")
+    @ResponseBody
+    public ResponseEntity<String> testCrawler(@RequestParam("year") String year, @RequestParam("semester") String semester) {
+        try {
+            String semesterInKorean;
+            switch (semester) {
+                case "1":
+                    semesterInKorean = "1학기";
+                    break;
+                case "2":
+                    semesterInKorean = "2학기";
+                    break;
+                case "summer":
+                    semesterInKorean = "하계학기"; // 파이썬 스크립트의 기준에 맞춤
+                    break;
+                case "winter":
+                    semesterInKorean = "동계학기"; // 파이썬 스크립트의 기준에 맞춤
+                    break;
+                default:
+                    return ResponseEntity.badRequest().body("Invalid semester value: " + semester);
+            }
+            
+            // 서비스에는 변환된 한글 학기를 전달
+            crawlerService.runCrawlerImmediately(year, semesterInKorean);
+            
+            // 사용자 피드백은 영문/숫자 파라미터 기준
+            return ResponseEntity.ok("Crawler execution started for " + year + " " + semester + ". Check server logs.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                 .body("Error during crawler execution: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/crawler-admin")
+    public String crawlerAdminPage() {
+        return "crawler-admin";
+    }
+
+    @GetMapping("/api/crawled-files")
+    @ResponseBody
+    public ResponseEntity<List<String>> getCrawledFiles() {
+        File dataDirectory = new File("course_analyzer/src/main/resources/data");
+        if (!dataDirectory.exists() || !dataDirectory.isDirectory()) {
+            return ResponseEntity.ok(new ArrayList<>());
+        }
+        
+        String[] files = dataDirectory.list((dir, name) -> name.toLowerCase().endsWith(".csv"));
+        
+        List<String> fileList = (files != null) ? Arrays.asList(files) : new ArrayList<>();
+        
+        return ResponseEntity.ok(fileList);
+    }
 
     @GetMapping("/")
     public String index(Authentication authentication) {

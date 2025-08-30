@@ -33,7 +33,19 @@
             font-size: 1.1em;
             color: #495057;
             line-height: 1.6;
-            margin-bottom: 75px;
+            margin-bottom: 25px; /* 경고 메시지 공간 확보 */
+        }
+        .alert-message {
+            color: #A60026; /* 서강대 색상 */
+            font-weight: 500;
+            background-color: #fbe9eb;
+            border: 1px solid #f5c6cb;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
         }
         .kakao-login-btn {
             display: inline-block;
@@ -52,10 +64,14 @@
         과목 추천, 선수 과목 조회, 학기별 통계 정보를 제공합니다.
     </p>
 
-    <div th:if="${param.message}" style="color: green; text-align: center; margin-bottom: 15px;" th:text="${param.message}"></div>
-    <div th:if="${param.error}" style="color: red; text-align: center; margin-bottom: 15px;">
+    <!-- 경고 메시지 표시 영역 -->
+    <div th:if="${warning}" class="alert-message" th:text="${warning}"></div>
+    <div th:if="${error}" class="alert-message" th:text="${error}"></div>
+    <div th:if="${param.error}" class="alert-message">
         사용자 ID 또는 비밀번호가 올바르지 않습니다.
     </div>
+
+    <div th:if="${message}" style="color: green; text-align: center; margin-bottom: 15px;" th:text="${message}"></div>
 
     <!-- Login and Register Forms -->
     <div style="display: flex; justify-content: center; gap: 40px; margin-bottom: 40px;">

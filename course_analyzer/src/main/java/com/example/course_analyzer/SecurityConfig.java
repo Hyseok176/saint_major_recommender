@@ -17,6 +17,7 @@ public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -50,7 +51,8 @@ public class SecurityConfig {
                                 .userService(customOAuth2UserService)
                         )
                         .successHandler(customAuthenticationSuccessHandler)
-                );
+                )
+                .exceptionHandling(e -> e.authenticationEntryPoint(customAuthenticationEntryPoint));
 
         return http.build();
     }
@@ -81,7 +83,8 @@ public class SecurityConfig {
                                 .userService(customOAuth2UserService)
                         )
                         .successHandler(customAuthenticationSuccessHandler)
-                );
+                )
+                .exceptionHandling(e -> e.authenticationEntryPoint(customAuthenticationEntryPoint));
 
         return http.build();
     }
