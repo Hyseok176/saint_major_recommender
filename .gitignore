@@ -21,3 +21,4 @@ error.txt
 
 # Do NOT ignore temp/ folder
 #!temp/
+.env 
