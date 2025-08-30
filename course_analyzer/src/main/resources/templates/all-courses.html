@@ -260,12 +260,12 @@
             </select>
         </div>
         <div class="filter-buttons" style="margin-bottom: 20px;">
-            <button class="filter-button" th:classappend="${selectedMajor.equals('NonMajor')} ? 'active'" onclick="location.href='/all-courses?major=NonMajor'">비전공</button>
+            <button class="filter-button" th:classappend="${selectedMajor.equals('NonMajor')} ? 'active'" th:data-major="'NonMajor'">비전공</button>
             <button th:each="major : ${userMajors}"
                     class="filter-button"
                     th:classappend="${major.equals(selectedMajor)} ? 'active'"
                     th:text="${major}"
-                    th:onclick="|location.href='@{/all-courses(major=${major})}'|"></button>
+                    th:data-major="${major}"></button>
         </div>
         <input type="text" id="search-input" placeholder="과목명으로 검색...">
         <div id="course-list">
@@ -307,7 +307,26 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Semester Filter Logic (now tied to the main semester dropdown)
+            // Filter button logic
+            const filterButtons = document.querySelectorAll('.filter-button');
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const major = this.dataset.major;
+                    const currentUrl = new URL(window.location.href);
+                    const currentMajor = currentUrl.searchParams.get('major');
+
+                    if (currentMajor === major) {
+                        currentUrl.searchParams.delete('major');
+                    } else {
+                        currentUrl.searchParams.set('major', major);
+                    }
+                    // When a major filter is toggled, always remove the semester filter
+                    currentUrl.searchParams.delete('semester');
+                    window.location.href = currentUrl.toString();
+                });
+            });
+
+            // Semester Filter Logic
             const semesterSelect = document.getElementById('semester-select');
             semesterSelect.addEventListener('change', function() {
                 const selectedSemester = this.value;
@@ -329,9 +348,12 @@
                     const courseCode = this.dataset.courseCode;
                     const canvasId = 'courseChart-' + index;
 
-                    if (chartContainer.style.display === 'flex') {
-                        chartContainer.style.display = 'none';
-                    } else {
+                    const isVisible = chartContainer.style.display === 'flex';
+
+                    // Close all other charts
+                    document.querySelectorAll('.chart-container').forEach(c => c.style.display = 'none');
+
+                    if (!isVisible) {
                         chartContainer.style.display = 'flex';
                         if (!charts.has(canvasId)) {
                             fetch(`/api/course-stats/${courseCode}`)
@@ -438,6 +460,11 @@
             async function addToCart(course) {
                 const year = document.getElementById('year-select').value;
                 const semester = document.getElementById('semester-select').value;
+
+                if (!semester) {
+                    alert('과목을 담을 학기를 먼저 선택해주세요.');
+                    return;
+                }
                 const targetSemester = `${year}년 ${semester}학기`;
 
                 const itemsInSemester = cart.filter(item => item.targetSemester === targetSemester).length;

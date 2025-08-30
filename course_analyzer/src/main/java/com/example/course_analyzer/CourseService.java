@@ -70,6 +70,11 @@ public class CourseService {
 
     @Transactional
     public void updateUserTranscript(User user, MultipartFile file, String major1, String major2, String major3, String ipAddress) throws IOException {
+        // Set the creation timestamp only if it's the first time uploading
+        if (user.getCreatedAt() == null) {
+            user.setCreatedAt(java.time.LocalDateTime.now());
+        }
+
         user.setMajor1(major1.replace(" ", ""));
         user.setMajor2(major2.replace(" ", ""));
         user.setMajor3(major3.replace(" ", ""));
@@ -79,7 +84,7 @@ public class CourseService {
         TranscriptParsingResult parsingResult = groupAndFormatCourses(rawCourses);
 
         user.setLastSemester(parsingResult.getLastSemester());
-        userRepository.save(user); // Save user with updated last semester
+        userRepository.save(user); // Save user with updated majors, timestamp, and last semester
 
         saveCoursesToDatabase(user, parsingResult.getCoursesBySemester());
     }

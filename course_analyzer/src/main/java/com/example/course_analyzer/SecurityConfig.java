@@ -37,6 +37,7 @@ public class SecurityConfig {
                         .loginPage("/") // Show login form on index page
                         .loginProcessingUrl("/login") // The URL to submit the username and password to
                         .successHandler(customAuthenticationSuccessHandler)
+                        .failureUrl("/?error=true")
                 )
                 .logout(logout -> logout
                         .logoutSuccessUrl("/")
@@ -67,6 +68,7 @@ public class SecurityConfig {
                         .loginPage("/")
                         .loginProcessingUrl("/login")
                         .successHandler(customAuthenticationSuccessHandler)
+                        .failureUrl("/?error=true")
                 )
                 .logout(logout -> logout
                         .logoutSuccessUrl("/")

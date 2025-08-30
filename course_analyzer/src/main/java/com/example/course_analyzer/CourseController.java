@@ -43,7 +43,11 @@ public class CourseController {
     private PasswordEncoder passwordEncoder;
 
     @GetMapping("/")
-    public String index() {
+    public String index(Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            // If the user is already authenticated, redirect them to the results page.
+            return "redirect:/results";
+        }
         return "index";
     }
 

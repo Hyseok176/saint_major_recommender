@@ -45,8 +45,7 @@ public class User {
 
     private String lastSemester;
 
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
+    @Column
     private LocalDateTime createdAt; // Timestamp for registration order
 
     @Builder
