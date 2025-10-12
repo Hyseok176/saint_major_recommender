@@ -90,7 +90,7 @@
 
 ####  	| 임대희        | 백엔드    | 20241646  | daehee2005@gmail.com  |
 
-####  	| 윤찬영        | 백엔드    | 20241630  | yoonch0511@gmail.com |
+####  	| 윤찬영        | 백엔드    | 20241630  | yooncy0511@gmail.com |
 
 ####  	| 이혜원        | 백엔드    | 20241645  | emdqnfm@naver.com     |
 
