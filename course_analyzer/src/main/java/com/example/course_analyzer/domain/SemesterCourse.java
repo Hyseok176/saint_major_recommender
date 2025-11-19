@@ -1,0 +1,23 @@
+package com.example.course_analyzer.domain;
+
+import com.example.course_analyzer.user.User;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import lombok.Data;
+
+@Entity
+@Data
+public class SemesterCourse {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private double semester;
+    private String courseCode; // Changed from courseName to courseCode
+    private String grade;
+
+    @ManyToOne
+    private User user;
+}
