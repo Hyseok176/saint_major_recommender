@@ -1,181 +1,73 @@
 package com.example.course_analyzer.controller;
 
-import com.example.course_analyzer.domain.Course;
-import com.example.course_analyzer.domain.CourseMapping;
-import com.example.course_analyzer.domain.SavedCourse;
-import com.example.course_analyzer.domain.SemesterCourse;
-import com.example.course_analyzer.domain.User;
+import com.example.course_analyzer.domain.*;
 import com.example.course_analyzer.dto.CourseStatDto;
-import com.example.course_analyzer.dto.RecommendationRequestDto;
-import com.example.course_analyzer.dto.RecommendedCourseDto;
 import com.example.course_analyzer.repository.CourseMappingRepository;
 import com.example.course_analyzer.repository.SemesterCourseRepository;
 import com.example.course_analyzer.repository.UserRepository;
 import com.example.course_analyzer.service.CourseService;
-import com.example.course_analyzer.service.CrawlerService;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.io.File;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.LinkedHashMap;
 
+/**
+ * CourseController
+ *
+ * 과목 조회, 통계, 장바구니 등 핵심 과목 데이터와 관련된 요청을 처리하는 컨트롤러입니다.
+ *
+ * 주요 기능:
+ * 1. 수강 결과 조회 페이지 (/results)
+ * 2. 전체 과목 조회 및 필터링 페이지 (/all-courses)
+ * 3. 과목 통계 API (/api/course-stats)
+ * 4. 장바구니(담은 과목) 관리 API (/api/saved-courses)
+ */
 @Controller
+@RequiredArgsConstructor
 public class CourseController {
 
-    @Autowired
-    private CourseService courseService;
+    private final CourseService courseService;
+    private final UserRepository userRepository;
+    private final SemesterCourseRepository semesterCourseRepository;
+    private final CourseMappingRepository courseMappingRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private SemesterCourseRepository semesterCourseRepository;
-
-    @Autowired
-    private CourseMappingRepository courseMappingRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private CrawlerService crawlerService;
-
-    @GetMapping("/test-crawler")
-    @ResponseBody
-    public ResponseEntity<String> testCrawler(@RequestParam("year") String year, @RequestParam("semester") String semester) {
-        try {
-            String semesterInKorean;
-            switch (semester) {
-                case "1":
-                    semesterInKorean = "1학기";
-                    break;
-                case "2":
-                    semesterInKorean = "2학기";
-                    break;
-                case "summer":
-                    semesterInKorean = "하계학기"; // 파이썬 스크립트의 기준에 맞춤
-                    break;
-                case "winter":
-                    semesterInKorean = "동계학기"; // 파이썬 스크립트의 기준에 맞춤
-                    break;
-                default:
-                    return ResponseEntity.badRequest().body("Invalid semester value: " + semester);
-            }
-            
-            // 서비스에는 변환된 한글 학기를 전달
-            crawlerService.runCrawlerImmediately(year, semesterInKorean);
-            
-            // 사용자 피드백은 영문/숫자 파라미터 기준
-            return ResponseEntity.ok("Crawler execution started for " + year + " " + semester + ". Check server logs.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                 .body("Error during crawler execution: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/crawler-admin")
-    public String crawlerAdminPage() {
-        return "crawler-admin";
-    }
-
-    @GetMapping("/api/crawled-files")
-    @ResponseBody
-    public ResponseEntity<List<String>> getCrawledFiles() {
-        File dataDirectory = new File("course_analyzer/src/main/resources/data");
-        if (!dataDirectory.exists() || !dataDirectory.isDirectory()) {
-            return ResponseEntity.ok(new ArrayList<>());
-        }
-        
-        String[] files = dataDirectory.list((dir, name) -> name.toLowerCase().endsWith(".csv"));
-        
-        List<String> fileList = (files != null) ? Arrays.asList(files) : new ArrayList<>();
-        
-        return ResponseEntity.ok(fileList);
-    }
-
-    @GetMapping("/")
-    public String index(Authentication authentication) {
-        if (authentication != null && authentication.isAuthenticated()) {
-            // If the user is already authenticated, redirect them to the results page.
-            return "redirect:/results";
-        }
-        return "index";
-    }
-
-    @PostMapping("/register")
-    public String registerUser(@RequestParam("username") String username,
-                             @RequestParam("password") String password,
-                             @RequestParam(value = "nickname", required = false) String nickname,
-                             @RequestParam(value = "email", required = false) String email,
-                             RedirectAttributes redirectAttributes) {
-        if (userRepository.findByUsername(username).isPresent()) {
-            redirectAttributes.addFlashAttribute("error", "이미 존재하는 사용자 ID입니다.");
-            return "redirect:/";
-        }
-        User user = User.builder()
-                .username(username)
-                .nickname(nickname)
-                .email(email)
-                .password(passwordEncoder.encode(password))
-                .build();
-        userRepository.save(user);
-        redirectAttributes.addFlashAttribute("message", "회원가입이 완료되었습니다. 로그인해주세요.");
-        return "redirect:/";
-    }
-
-    @PostMapping("/upload")
-    public String uploadFile(@RequestParam("file") MultipartFile file,
-                             @RequestParam("major1") String major1,
-                             @RequestParam("major2") String major2,
-                             @RequestParam("major3") String major3,
-                             Model model,
-                             HttpServletRequest request,
-                             RedirectAttributes redirectAttributes) { // Added RedirectAttributes
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = getUserFromAuthentication(authentication);
-        String ipAddress = request.getRemoteAddr();
-        try {
-            courseService.updateUserTranscript(user, file, major1, major2, major3, ipAddress);
-            return "redirect:/results";
-        } catch (IOException e) {
-            redirectAttributes.addFlashAttribute("error", "파일 처리 중 오류가 발생했습니다. 파일 형식을 확인해주세요."); // Changed to RedirectAttributes
-            return "redirect:/upload-form"; // Redirect to upload-form
-        }
-    }
-
+    /**
+     * 수강 결과 페이지를 반환합니다.
+     * 사용자가 수강한 과목 내역과 장바구니에 담은 계획된 과목을 보여줍니다.
+     *
+     * URL: /results
+     *
+     * @param model 뷰 모델
+     * @return results.html 템플릿 이름
+     */
     @GetMapping("/results")
     public String showResults(Model model) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
 
-        // 1. Fetch and process completed courses
+        // 1. 수강 완료한 과목 조회 및 처리
         List<SemesterCourse> takenCourses = semesterCourseRepository.findByUser(user).stream()
                 .filter(c -> c.getSemester() > 0)
                 .collect(Collectors.toList());
 
+        // 학기별로 과목 그룹화 (TreeMap을 사용하여 학기 순으로 자동 정렬)
         Map<Double, List<Course>> coursesBySemesterNumber = takenCourses.stream()
                 .collect(Collectors.groupingBy(SemesterCourse::getSemester,
-                        java.util.TreeMap::new, // TreeMap automatically sorts by key (Double)
+                        java.util.TreeMap::new,
                         Collectors.mapping(sc -> {
                             String courseCode = sc.getCourseCode();
                             String actualCourseName = courseMappingRepository.findById(courseCode)
@@ -184,27 +76,27 @@ public class CourseController {
                             return new Course(String.valueOf(sc.getSemester()), courseCode, actualCourseName, sc.getGrade());
                         }, Collectors.toList())));
 
-        // This map will hold the final, ordered list for the view
+        // 뷰에 전달할 최종 맵 (순서 보장을 위해 LinkedHashMap 사용)
         Map<String, List<Course>> coursesForModel = new LinkedHashMap<>();
 
-        // Add completed semesters to the final map, preserving their sorted order
+        // 완료된 학기 추가 (키 포맷팅: "1학기", "1.5학기" 등)
         coursesBySemesterNumber.forEach((semester, courses) -> {
             String semesterKey = (semester % 1 == 0)
-                ? String.format("%.0f학기", semester)
-                : String.format("%.1f학기", semester);
+                    ? String.format("%.0f학기", semester)
+                    : String.format("%.1f학기", semester);
             coursesForModel.put(semesterKey, courses);
         });
 
-        // 2. Fetch and process planned courses (from cart)
+        // 2. 장바구니(계획) 과목 조회 및 처리
         List<SavedCourse> savedCourses = courseService.getSavedCourses(user.getUsername());
         Map<String, List<SavedCourse>> savedCoursesBySemester = savedCourses.stream()
                 .filter(sc -> sc.getTargetSemester() != null && !sc.getTargetSemester().isEmpty())
                 .collect(Collectors.groupingBy(SavedCourse::getTargetSemester));
 
-        // Sort the future semester keys alphabetically (e.g., "2025년 1학기", "2025년 2학기")
+        // 미래 학기 키 정렬 (예: "2025년 1학기", "2025년 2학기")
         List<String> sortedFutureSemesters = savedCoursesBySemester.keySet().stream().sorted().collect(Collectors.toList());
 
-        // Add planned semesters to the final map in their sorted order
+        // 계획된 학기 추가
         for (String semester : sortedFutureSemesters) {
             String semesterKey = String.format("%s (계획)", semester);
             List<Course> courseViewModels = savedCoursesBySemester.get(semester).stream()
@@ -214,45 +106,22 @@ public class CourseController {
         }
 
         model.addAttribute("coursesBySemester", coursesForModel);
-        model.addAttribute("savedCourses", savedCourses); // For the floating cart
+        model.addAttribute("savedCourses", savedCourses); // 플로팅 장바구니용 데이터
 
         return "results";
     }
 
-    @GetMapping("/upload-form")
-    public String showUploadForm() {
-        return "upload-file";
-    }
-
-    @GetMapping("/recommend")
-    public String showRecommendPage(Model model) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = getUserFromAuthentication(authentication);
-
-        model.addAttribute("title", "과목 추천");
-        model.addAttribute("recommendedCoursesMap", Map.of("major", new ArrayList<>(), "ge", new ArrayList<>()));
-        model.addAllAttributes(generateFutureSemesterOptions(user));
-        return "recommend";
-    }
-
-    @PostMapping("/recommend")
-    public String recommend(@RequestBody RecommendationRequestDto requestDto, Model model) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = getUserFromAuthentication(authentication);
-        
-        List<String> cartCourseCodes = requestDto.getCartCourseCodes() == null ? new ArrayList<>() : requestDto.getCartCourseCodes();
-        List<String> dismissedCourseCodes = requestDto.getDismissedCourseCodes() == null ? new ArrayList<>() : requestDto.getDismissedCourseCodes();
-        Integer semester = requestDto.getSemester();
-
-        Map<String, List<RecommendedCourseDto>> recommendedCoursesMap = courseService.recommendCourses(user, cartCourseCodes, dismissedCourseCodes, semester);
-        
-        model.addAttribute("title", "과목 추천");
-        model.addAttribute("recommendedCoursesMap", recommendedCoursesMap);
-        model.addAttribute("isEssentialTrackRecommendation", courseService.hasUncompletedTracks(user));
-        
-        return "recommend :: #recommendation-results";
-    }
-
+    /**
+     * 전체 과목 조회 페이지를 반환합니다.
+     * 전공별, 학기별 필터링 기능을 제공합니다.
+     *
+     * URL: /all-courses
+     *
+     * @param major 선택된 전공 필터 (All, NonMajor, 또는 특정 전공명)
+     * @param semester 선택된 학기 필터
+     * @param model 뷰 모델
+     * @return all-courses.html 템플릿 이름
+     */
     @GetMapping("/all-courses")
     public String showAllCourses(@RequestParam(value = "major", required = false) String major,
                                  @RequestParam(value = "semester", required = false) Integer semester,
@@ -260,46 +129,47 @@ public class CourseController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
 
+        // 사용자의 전공 정보 전달 (필터 버튼 생성용)
         List<String> userMajors = new ArrayList<>();
         if (user.getMajor1() != null && !user.getMajor1().isEmpty()) userMajors.add(user.getMajor1());
         if (user.getMajor2() != null && !user.getMajor2().isEmpty()) userMajors.add(user.getMajor2());
         if (user.getMajor3() != null && !user.getMajor3().isEmpty()) userMajors.add(user.getMajor3());
         model.addAttribute("userMajors", userMajors);
 
+        // 필터링 로직
         if ("NonMajor".equals(major)) {
+            // 비전공 과목 조회
             List<CourseMapping> nonMajorCourseMappings = courseService.getNonMajorCourses(user, semester);
-            List<CourseStatDto> courses = nonMajorCourseMappings.stream()
-                    .map(course -> new CourseStatDto(
-                            course.getCourseCode(),
-                            course.getCourseName(),
-                            semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
-                    ))
-                    .collect(Collectors.toList());
+            List<CourseStatDto> courses = mapToCourseStatDto(nonMajorCourseMappings);
             model.addAttribute("courses", courses);
             model.addAttribute("selectedMajor", "NonMajor");
         } else if (major != null && !major.isEmpty() && !"All".equals(major)) {
+            // 특정 전공 과목 조회
             String majorPrefix = courseService.getCoursePrefixForMajor(major);
             List<CourseStatDto> courses = courseService.getCoursesByMajor(majorPrefix, semester);
             model.addAttribute("courses", courses);
             model.addAttribute("selectedMajor", major);
         } else {
-            List<CourseMapping> allCourseMappings = courseService.getAllCourses(); // Note: getAllCourses is not filtered by semester yet. This might be a future improvement.
-            List<CourseStatDto> courses = allCourseMappings.stream()
-                    .map(course -> new CourseStatDto(
-                            course.getCourseCode(),
-                            course.getCourseName(),
-                            semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
-                    ))
-                    .collect(Collectors.toList());
+            // 전체 과목 조회
+            List<CourseMapping> allCourseMappings = courseService.getAllCourses();
+            List<CourseStatDto> courses = mapToCourseStatDto(allCourseMappings);
             model.addAttribute("courses", courses);
             model.addAttribute("selectedMajor", "All");
         }
 
         model.addAllAttributes(generateFutureSemesterOptions(user));
-        model.addAttribute("selectedSemester", semester); // Pass the selected semester back to the view
+        model.addAttribute("selectedSemester", semester);
         return "all-courses";
     }
 
+    /**
+     * 특정 과목의 통계 데이터를 조회합니다.
+     *
+     * URL: /api/course-stats/{subjectCode}
+     *
+     * @param subjectCode 과목 코드
+     * @return 학기별 수강생 수 통계 맵
+     */
     @GetMapping("/api/course-stats/{subjectCode}")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getCourseStats(@PathVariable String subjectCode) {
@@ -311,17 +181,14 @@ public class CourseController {
         }
     }
 
-    @PostMapping("/extract-majors")
-    @ResponseBody
-    public ResponseEntity<List<String>> extractMajors(@RequestParam("file") MultipartFile file) {
-        try {
-            List<String> majors = courseService.extractMajorsFromFile(file.getInputStream());
-            return ResponseEntity.ok(majors);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
-
+    /**
+     * 사용자의 장바구니(담은 과목) 목록을 조회합니다.
+     *
+     * URL: /api/saved-courses
+     *
+     * @param authentication 인증 객체
+     * @return 저장된 과목 리스트
+     */
     @GetMapping("/api/saved-courses")
     @ResponseBody
     public ResponseEntity<List<SavedCourse>> getSavedCourses(Authentication authentication) {
@@ -330,6 +197,16 @@ public class CourseController {
         return ResponseEntity.ok(savedCourses);
     }
 
+    /**
+     * 장바구니에 과목을 추가합니다.
+     *
+     * URL: /api/saved-courses/{courseCode} (POST)
+     *
+     * @param courseCode 과목 코드
+     * @param payload 과목 이름과 목표 학기를 담은 맵
+     * @param authentication 인증 객체
+     * @return 추가된 SavedCourse 객체 또는 에러 메시지
+     */
     @PostMapping("/api/saved-courses/{courseCode}")
     @ResponseBody
     public ResponseEntity<?> addSavedCourse(@PathVariable String courseCode, @RequestBody Map<String, String> payload, Authentication authentication) {
@@ -344,6 +221,15 @@ public class CourseController {
         }
     }
 
+    /**
+     * 장바구니에서 과목을 삭제합니다.
+     *
+     * URL: /api/saved-courses/{courseCode} (DELETE)
+     *
+     * @param courseCode 삭제할 과목 코드
+     * @param authentication 인증 객체
+     * @return 성공 시 200 OK
+     */
     @DeleteMapping("/api/saved-courses/{courseCode}")
     @ResponseBody
     public ResponseEntity<?> deleteSavedCourse(@PathVariable String courseCode, Authentication authentication) {
@@ -354,6 +240,18 @@ public class CourseController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
+    }
+
+    // --- Helper Methods ---
+
+    private List<CourseStatDto> mapToCourseStatDto(List<CourseMapping> courseMappings) {
+        return courseMappings.stream()
+                .map(course -> new CourseStatDto(
+                        course.getCourseCode(),
+                        course.getCourseName(),
+                        semesterCourseRepository.countDistinctUsersByCourseCode(course.getCourseCode())
+                ))
+                .collect(Collectors.toList());
     }
 
     private User getUserFromAuthentication(Authentication authentication) {
@@ -388,7 +286,6 @@ public class CourseController {
                 startSemester = 2;
             }
         } else {
-            // Fallback for new users or users without lastSemester data
             LocalDate today = LocalDate.now();
             startYear = today.getYear();
             int currentMonth = today.getMonthValue();

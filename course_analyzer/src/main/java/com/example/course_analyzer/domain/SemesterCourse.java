@@ -1,6 +1,6 @@
 package com.example.course_analyzer.domain;
 
-import com.example.course_analyzer.user.User;
+import com.example.course_analyzer.domain.User;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;

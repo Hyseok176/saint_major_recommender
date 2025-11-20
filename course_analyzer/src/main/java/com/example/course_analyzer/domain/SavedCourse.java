@@ -1,6 +1,5 @@
 package com.example.course_analyzer.domain;
 
-import com.example.course_analyzer.user.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
