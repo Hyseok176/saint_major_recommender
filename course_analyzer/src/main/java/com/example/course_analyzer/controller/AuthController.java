@@ -51,19 +51,19 @@ public class AuthController {
      *
      * URL: /register (POST)
      *
-     * @param username 사용자 ID
-     * @param password 비밀번호 (BCrypt로 암호화되어 저장됨)
-     * @param nickname 닉네임 (선택 사항)
-     * @param email 이메일 (선택 사항)
+     * @param username           사용자 ID
+     * @param password           비밀번호 (BCrypt로 암호화되어 저장됨)
+     * @param nickname           닉네임 (선택 사항)
+     * @param email              이메일 (선택 사항)
      * @param redirectAttributes 리다이렉트 시 화면에 전달할 메시지(성공/실패)를 담는 객체
      * @return 메인 페이지로 리다이렉트
      */
     @PostMapping("/register")
     public String registerUser(@RequestParam("username") String username,
-                               @RequestParam("password") String password,
-                               @RequestParam(value = "nickname", required = false) String nickname,
-                               @RequestParam(value = "email", required = false) String email,
-                               RedirectAttributes redirectAttributes) {
+            @RequestParam("password") String password,
+            @RequestParam(value = "nickname", required = false) String nickname,
+            @RequestParam(value = "email", required = false) String email,
+            RedirectAttributes redirectAttributes) {
         // 1. 중복 ID 확인
         if (userRepository.findByUsername(username).isPresent()) {
             redirectAttributes.addFlashAttribute("error", "이미 존재하는 사용자 ID입니다.");

@@ -1,5 +1,7 @@
 package com.example.course_analyzer.dto;
 
+import com.example.course_analyzer.domain.Course;
+
 import java.util.List;
 import java.util.Map;
 

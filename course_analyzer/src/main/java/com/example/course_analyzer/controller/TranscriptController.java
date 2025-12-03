@@ -59,29 +59,29 @@ public class TranscriptController {
      *
      * URL: /upload (POST)
      *
-     * @param file 업로드된 성적표 파일 (PDF, Excel 등)
-     * @param major1 1전공
-     * @param major2 2전공
-     * @param major3 3전공
-     * @param model 뷰 모델
-     * @param request HTTP 요청 객체 (IP 주소 로깅용)
+     * @param file               업로드된 성적표 파일 (PDF, Excel 등)
+     * @param major1             1전공
+     * @param major2             2전공
+     * @param major3             3전공
+     * @param model              뷰 모델
+     * @param request            HTTP 요청 객체 (IP 주소 로깅용)
      * @param redirectAttributes 리다이렉트 시 에러 메시지 전달용
      * @return 결과 페이지(/results) 또는 업로드 폼(/upload-form)으로 리다이렉트
      */
     @PostMapping("/upload")
     public String uploadFile(@RequestParam("file") MultipartFile file,
-                             @RequestParam("major1") String major1,
-                             @RequestParam("major2") String major2,
-                             @RequestParam("major3") String major3,
-                             Model model,
-                             HttpServletRequest request,
-                             RedirectAttributes redirectAttributes) {
+            @RequestParam("major1") String major1,
+            @RequestParam("major2") String major2,
+            @RequestParam("major3") String major3,
+            Model model,
+            HttpServletRequest request,
+            RedirectAttributes redirectAttributes) {
         // 현재 로그인한 사용자 정보 가져오기
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User user = getUserFromAuthentication(authentication);
-        
+
         String ipAddress = request.getRemoteAddr();
-        
+
         try {
             // 서비스 계층에 파일 분석 및 사용자 업데이트 위임
             courseService.updateUserTranscript(user, file, major1, major2, major3, ipAddress);
