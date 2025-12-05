@@ -1,6 +1,7 @@
 package com.saintplus.coursehistory.domain;
 
 import com.saintplus.user.domain.User;
+import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Data;
 

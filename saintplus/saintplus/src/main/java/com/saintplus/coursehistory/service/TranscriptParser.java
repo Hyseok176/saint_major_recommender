@@ -23,13 +23,20 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class TranscriptParser {
 
-    private static final Pattern COURSE_PATTERN = Pattern.compile("^(20\\d{2}-[12SW])\\s*([A-Z]{3,4}\\d{3,4})\\s*(.+?)\\s*([0-9]+\\.[0-9])\\s*([A-F][+-]?|S|U|P|F|W)?\\s*(.*)$");
+    private static final Pattern COURSE_PATTERN = Pattern.compile(
+            "^(20\\d{2}-[12SW])\\s+" +                // 1. 학기
+                    "([A-Z]{3,5}\\d{3,4})\\s+" +            // 2. 과목코드
+                    "(.+?)\\s+" +                           // 3. 과목이름
+                    "([0-9]+\\.[0-9])\\s*" +                // 4. 학점
+                    "(A[+-0]?|B[+-0]?|C[+-0]?|D[+-0]?|F|FA|U|S|P|W)?" +  // 5. 성적
+                    "\\s*(.*)$");                           // 6. 비고
+
     private static final Pattern MAJOR_PATTERN = Pattern.compile("1전공(.+?)2전공(.+?)3전공(.+)");
 
 
     public TranscriptScanResult analyzeFile(InputStream inputStream, String userId) throws IOException {
         List<CourseAnalysisData> rawCourses = new ArrayList<>();
-        Map<String, String> mappingCourseCodeName = new HashMap<>();
+        Map<String, String> mappingCourseCodeName = new HashMap<>(); // 설마 과목 코드가 중복되는 경우가 있을까.
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "EUC-KR"))) {
             String line;
@@ -39,11 +46,11 @@ public class TranscriptParser {
                 Matcher courseMatcher = COURSE_PATTERN.matcher(line);
                 if (courseMatcher.find()) {
                     String rawSemester = courseMatcher.group(1);
-                    String courseCode = courseMatcher.group(2);
+                    String courseCode = courseMatcher.group(2).trim();
                     String courseName = courseMatcher.group(3).trim();
 
-                    String grade = courseMatcher.group(5).trim();
-                    String rawRemarksString = courseMatcher.group(6).trim();
+                    String grade = Objects.toString(courseMatcher.group(5), "").trim();
+                    String rawRemarksString = Objects.toString(courseMatcher.group(6), "").trim();
                     Remarks importantRemarks = processRemarks(grade, rawRemarksString);
 
                     rawCourses.add(CourseAnalysisData.builder()
@@ -105,25 +112,16 @@ public class TranscriptParser {
 
 
     public TranscriptParsingResult groupAndFormatCourses(List<CourseAnalysisData> rawCourses) {
-        Map<String, CourseAnalysisData> earliestCourseInstances = new HashMap<>();
+
         rawCourses.sort(Comparator.comparing(course -> new SemesterInfo(course.getSemester())));
-
-        for (CourseAnalysisData course : rawCourses) {
-            String courseCode = course.getCourseCode();
-            if (!earliestCourseInstances.containsKey(courseCode)) {
-                earliestCourseInstances.put(courseCode, course);
-            }
-        }
-
-        List<CourseAnalysisData> processedCourses = new ArrayList<>(earliestCourseInstances.values());
-        processedCourses.sort(Comparator.comparing(course -> new SemesterInfo(course.getSemester())));
 
         Map<String, List<CourseAnalysisData>> coursesByFormattedSemester = new LinkedHashMap<>();
         Map<String, String> semesterIdentifierToFormattedKeyMap = new HashMap<>();
+
         int continuousSemesterCounter = 0;
         int lastRegularSemesterNumber = 0;
 
-        for (CourseAnalysisData course : processedCourses) {
+        for (CourseAnalysisData course : rawCourses) {
             SemesterInfo currentSemesterInfo = new SemesterInfo(course.getSemester());
             String semesterIdentifier = currentSemesterInfo.toString();
             String formattedKey;
@@ -149,7 +147,7 @@ public class TranscriptParser {
 
         coursesByFormattedSemester.forEach((semester, courseList) -> courseList.sort(Comparator.comparing(CourseAnalysisData::getCourseCode)));
 
-        String lastSemesterString = processedCourses.isEmpty() ? null : processedCourses.get(processedCourses.size() - 1).getSemester();
+        String lastSemesterString = rawCourses.isEmpty() ? null : rawCourses.get(rawCourses.size() - 1).getSemester();
 
         return new TranscriptParsingResult(coursesByFormattedSemester, lastSemesterString);
     }

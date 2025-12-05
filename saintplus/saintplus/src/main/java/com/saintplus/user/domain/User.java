@@ -72,9 +72,5 @@ public class User {
     }
 
 
-    public void updatePassword(){
-        //비밀번호 변경 처리
-    }
-
 
 }
