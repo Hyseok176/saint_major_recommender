@@ -1,4 +1,4 @@
-package com.example.course_analyzer.config;
+package com.saintplus.common.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
