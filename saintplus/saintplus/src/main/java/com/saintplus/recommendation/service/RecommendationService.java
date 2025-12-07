@@ -1,6 +1,6 @@
-package com.saintplus.service;
+package com.saintplus.recommendation.service;
 
-import com.saintplus.dto.AiRecommendationDto;
+import com.saintplus.recommendation.dto.AiRecommendationDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;

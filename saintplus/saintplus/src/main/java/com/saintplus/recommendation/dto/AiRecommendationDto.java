@@ -1,4 +1,4 @@
-package com.saintplus.dto;
+package com.saintplus.recommendation.dto;
 
 import java.util.List;
 import lombok.Getter;

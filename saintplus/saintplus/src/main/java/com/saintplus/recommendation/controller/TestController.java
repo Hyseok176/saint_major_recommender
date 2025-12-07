@@ -1,6 +1,6 @@
-package com.saintplus.controller;
+package com.saintplus.recommendation.controller;
 
-import com.saintplus.service.RecommendationService;
+import com.saintplus.recommendation.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
