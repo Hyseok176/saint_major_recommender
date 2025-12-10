@@ -1,10 +1,8 @@
 package com.saintplus.user.controller;
 
-import com.saintplus.user.domain.User;
-import com.saintplus.user.repository.UserRepository;
+import com.saintplus.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,8 +22,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserService userService;
 
     /**
      * 메인 페이지(인덱스)를 반환합니다.
@@ -64,25 +61,12 @@ public class AuthController {
             @RequestParam(value = "nickname", required = false) String nickname,
             @RequestParam(value = "email", required = false) String email,
             RedirectAttributes redirectAttributes) {
-        // 1. 중복 ID 확인
-        if (userRepository.findByUsername(username).isPresent()) {
-            redirectAttributes.addFlashAttribute("error", "이미 존재하는 사용자 ID입니다.");
-            return "redirect:/";
+        try {
+            userService.registerUser(username, password, nickname, email);
+            redirectAttributes.addFlashAttribute("message", "회원가입이 완료되었습니다. 로그인해주세요.");
+        } catch (IllegalStateException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-
-        // 2. 새로운 사용자 객체 생성 (Builder 패턴 사용)
-        User user = User.builder()
-                .username(username)
-                .nickname(nickname)
-                .email(email)
-                .password(passwordEncoder.encode(password)) // 비밀번호 암호화 필수
-                .build();
-
-        // 3. DB 저장
-        userRepository.save(user);
-
-        // 4. 성공 메시지 전달 및 리다이렉트
-        redirectAttributes.addFlashAttribute("message", "회원가입이 완료되었습니다. 로그인해주세요.");
         return "redirect:/";
     }
 }

@@ -5,13 +5,13 @@ import com.saintplus.transcript.domain.Enrollment;
 import com.saintplus.course.repository.CourseRepository;
 import com.saintplus.transcript.repository.EnrollmentRepository;
 import com.saintplus.course.domain.SavedCourse;
+import com.saintplus.course.dto.CourseAnalysisData;
 import com.saintplus.course.dto.RecommendedCourseDto;
 import com.saintplus.course.repository.SavedCourseRepository;
 import com.saintplus.user.domain.User;
 import com.saintplus.user.repository.UserRepository;
 import com.saintplus.course.dto.CourseStatDto;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -409,5 +409,112 @@ public class CourseService {
             }
         }
         return false; // All tracks completed
+    }
+
+    /**
+     * 사용자의 수강 결과 데이터를 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getResultsData(User user) {
+        // 1. 수강 완료한 과목 조회 및 처리
+        List<Enrollment> takenCourses = enrollmentRepository.findByUser(user).stream()
+                .filter(c -> c.getSemester() > 0)
+                .toList();
+
+        // 학기별로 과목 그룹화
+        Map<Double, List<CourseAnalysisData>> coursesBySemesterNumber = takenCourses.stream()
+                .collect(Collectors.groupingBy(Enrollment::getSemester,
+                        java.util.TreeMap::new,
+                        Collectors.mapping(sc -> {
+                            String courseCode = sc.getCourseCode();
+                            String actualCourseName = courseRepository.findById(courseCode)
+                                    .map(Course::getCourseName)
+                                    .orElse(courseCode);
+                            return new CourseAnalysisData(String.valueOf(sc.getSemester()), courseCode, actualCourseName);
+                        }, Collectors.toList())));
+
+        Map<String, List<CourseAnalysisData>> coursesForModel = new LinkedHashMap<>();
+
+        coursesBySemesterNumber.forEach((semester, courses) -> {
+            String semesterKey = (semester % 1 == 0)
+                    ? String.format("%.0f학기", semester)
+                    : String.format("%.1f학기", semester);
+            coursesForModel.put(semesterKey, courses);
+        });
+
+        // 2. 장바구니(계획) 과목 조회 및 처리
+        List<SavedCourse> savedCourses = getSavedCourses(user.getUsername());
+        Map<String, List<SavedCourse>> savedCoursesBySemester = savedCourses.stream()
+                .filter(sc -> sc.getTargetSemester() != null && !sc.getTargetSemester().isEmpty())
+                .collect(Collectors.groupingBy(SavedCourse::getTargetSemester));
+
+        List<String> sortedFutureSemesters = savedCoursesBySemester.keySet().stream().sorted()
+                .collect(Collectors.toList());
+
+        for (String semester : sortedFutureSemesters) {
+            String semesterKey = String.format("%s (계획)", semester);
+            List<CourseAnalysisData> courseViewModels = savedCoursesBySemester.get(semester).stream()
+                    .map(sc -> new CourseAnalysisData(null, sc.getCourseCode(), sc.getCourseName(), "담은 과목"))
+                    .collect(Collectors.toList());
+            coursesForModel.put(semesterKey, courseViewModels);
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("coursesBySemester", coursesForModel);
+        response.put("savedCourses", savedCourses);
+
+        return response;
+    }
+
+    /**
+     * 전체 과목 조회 및 필터링 데이터를 반환합니다.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAllCoursesData(User user, String major, Integer semester) {
+        Map<String, Object> response = new HashMap<>();
+
+        // 사용자의 전공 정보
+        List<String> userMajors = new ArrayList<>();
+        if (user.getMajor1() != null && !user.getMajor1().isEmpty())
+            userMajors.add(user.getMajor1());
+        if (user.getMajor2() != null && !user.getMajor2().isEmpty())
+            userMajors.add(user.getMajor2());
+        if (user.getMajor3() != null && !user.getMajor3().isEmpty())
+            userMajors.add(user.getMajor3());
+        response.put("userMajors", userMajors);
+
+        // 필터링 로직
+        if ("NonMajor".equals(major)) {
+            List<Course> nonMajorCourseMappings = getNonMajorCourses(user, semester);
+            List<CourseStatDto> courses = mapToCourseStatDto(nonMajorCourseMappings);
+            response.put("courses", courses);
+            response.put("selectedMajor", "NonMajor");
+        } else if (major != null && !major.isEmpty() && !"All".equals(major)) {
+            String majorPrefix = getCoursePrefixForMajor(major);
+            List<CourseStatDto> courses = getCoursesByMajor(majorPrefix, semester);
+            response.put("courses", courses);
+            response.put("selectedMajor", major);
+        } else {
+            List<Course> allCourseMappings = getAllCourses();
+            List<CourseStatDto> courses = mapToCourseStatDto(allCourseMappings);
+            response.put("courses", courses);
+            response.put("selectedMajor", "All");
+        }
+
+        response.put("selectedSemester", semester);
+
+        return response;
+    }
+
+    /**
+     * Course 리스트를 CourseStatDto 리스트로 변환합니다.
+     */
+    private List<CourseStatDto> mapToCourseStatDto(List<Course> courseMappings) {
+        return courseMappings.stream()
+                .map(course -> new CourseStatDto(
+                        course.getCourseCode(),
+                        course.getCourseName(),
+                        enrollmentRepository.countDistinctUsersByCourseCode(course.getCourseCode())))
+                .collect(Collectors.toList());
     }
 }

@@ -1,32 +1,20 @@
 package com.saintplus.course.controller;
 
 import com.saintplus.course.service.CourseService;
-import com.saintplus.course.domain.Course;
-import com.saintplus.transcript.domain.Enrollment;
-import com.saintplus.course.dto.CourseAnalysisData;
-import com.saintplus.course.repository.CourseRepository;
-import com.saintplus.transcript.repository.EnrollmentRepository;
 import com.saintplus.course.domain.SavedCourse;
-import com.saintplus.course.dto.CourseStatDto;
 import com.saintplus.user.domain.User;
-import com.saintplus.user.repository.UserRepository;
+import com.saintplus.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * CourseController
@@ -39,9 +27,7 @@ import java.util.stream.Collectors;
 public class CourseController {
 
     private final CourseService courseService;
-    private final UserRepository userRepository;
-    private final EnrollmentRepository enrollmentRepository;
-    private final CourseRepository courseRepository;
+    private final UserService userService;
 
     /**
      * 수강 결과 데이터를 반환합니다.
@@ -49,57 +35,9 @@ public class CourseController {
      * URL: /results
      */
     @GetMapping("/results")
-    public ResponseEntity<Map<String, Object>> getResults() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = getUserFromAuthentication(authentication);
-
-        // 1. 수강 완료한 과목 조회 및 처리
-        List<Enrollment> takenCourses = enrollmentRepository.findByUser(user).stream()
-                .filter(c -> c.getSemester() > 0)
-                .toList();
-
-        // 학기별로 과목 그룹화
-        Map<Double, List<CourseAnalysisData>> coursesBySemesterNumber = takenCourses.stream()
-                .collect(Collectors.groupingBy(Enrollment::getSemester,
-                        java.util.TreeMap::new,
-                        Collectors.mapping(sc -> {
-                            String courseCode = sc.getCourseCode();
-                            String actualCourseName = courseRepository.findById(courseCode)
-                                    .map(Course::getCourseName)
-                                    .orElse(courseCode);
-                            return new CourseAnalysisData(String.valueOf(sc.getSemester()), courseCode, actualCourseName);
-                        }, Collectors.toList())));
-
-        Map<String, List<CourseAnalysisData>> coursesForModel = new LinkedHashMap<>();
-
-        coursesBySemesterNumber.forEach((semester, courses) -> {
-            String semesterKey = (semester % 1 == 0)
-                    ? String.format("%.0f학기", semester)
-                    : String.format("%.1f학기", semester);
-            coursesForModel.put(semesterKey, courses);
-        });
-
-        // 2. 장바구니(계획) 과목 조회 및 처리
-        List<SavedCourse> savedCourses = courseService.getSavedCourses(user.getUsername());
-        Map<String, List<SavedCourse>> savedCoursesBySemester = savedCourses.stream()
-                .filter(sc -> sc.getTargetSemester() != null && !sc.getTargetSemester().isEmpty())
-                .collect(Collectors.groupingBy(SavedCourse::getTargetSemester));
-
-        List<String> sortedFutureSemesters = savedCoursesBySemester.keySet().stream().sorted()
-                .collect(Collectors.toList());
-
-        for (String semester : sortedFutureSemesters) {
-            String semesterKey = String.format("%s (계획)", semester);
-            List<CourseAnalysisData> courseViewModels = savedCoursesBySemester.get(semester).stream()
-                    .map(sc -> new CourseAnalysisData(null, sc.getCourseCode(), sc.getCourseName(), "담은 과목"))
-                    .collect(Collectors.toList());
-            coursesForModel.put(semesterKey, courseViewModels);
-        }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("coursesBySemester", coursesForModel);
-        response.put("savedCourses", savedCourses);
-
+    public ResponseEntity<Map<String, Object>> getResults(Authentication authentication) {
+        User user = userService.getUserFromAuthentication(authentication);
+        Map<String, Object> response = courseService.getResultsData(user);
         return ResponseEntity.ok(response);
     }
 
@@ -111,43 +49,13 @@ public class CourseController {
     @GetMapping("/all-courses")
     public ResponseEntity<Map<String, Object>> getAllCourses(
             @RequestParam(value = "major", required = false) String major,
-            @RequestParam(value = "semester", required = false) Integer semester) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = getUserFromAuthentication(authentication);
-
-        Map<String, Object> response = new HashMap<>();
-
-        // 사용자의 전공 정보
-        List<String> userMajors = new ArrayList<>();
-        if (user.getMajor1() != null && !user.getMajor1().isEmpty())
-            userMajors.add(user.getMajor1());
-        if (user.getMajor2() != null && !user.getMajor2().isEmpty())
-            userMajors.add(user.getMajor2());
-        if (user.getMajor3() != null && !user.getMajor3().isEmpty())
-            userMajors.add(user.getMajor3());
-        response.put("userMajors", userMajors);
-
-        // 필터링 로직
-        if ("NonMajor".equals(major)) {
-            List<Course> nonMajorCourseMappings = courseService.getNonMajorCourses(user, semester);
-            List<CourseStatDto> courses = mapToCourseStatDto(nonMajorCourseMappings);
-            response.put("courses", courses);
-            response.put("selectedMajor", "NonMajor");
-        } else if (major != null && !major.isEmpty() && !"All".equals(major)) {
-            String majorPrefix = courseService.getCoursePrefixForMajor(major);
-            List<CourseStatDto> courses = courseService.getCoursesByMajor(majorPrefix, semester);
-            response.put("courses", courses);
-            response.put("selectedMajor", major);
-        } else {
-            List<Course> allCourseMappings = courseService.getAllCourses();
-            List<CourseStatDto> courses = mapToCourseStatDto(allCourseMappings);
-            response.put("courses", courses);
-            response.put("selectedMajor", "All");
-        }
-
+            @RequestParam(value = "semester", required = false) Integer semester,
+            Authentication authentication) {
+        User user = userService.getUserFromAuthentication(authentication);
+        
+        Map<String, Object> response = courseService.getAllCoursesData(user, major, semester);
         response.putAll(generateFutureSemesterOptions(user));
-        response.put("selectedSemester", semester);
-
+        
         return ResponseEntity.ok(response);
     }
 
@@ -173,7 +81,7 @@ public class CourseController {
      */
     @GetMapping("/api/saved-courses")
     public ResponseEntity<List<SavedCourse>> getSavedCourses(Authentication authentication) {
-        User user = getUserFromAuthentication(authentication);
+        User user = userService.getUserFromAuthentication(authentication);
         List<SavedCourse> savedCourses = courseService.getSavedCourses(user.getUsername());
         return ResponseEntity.ok(savedCourses);
     }
@@ -186,7 +94,7 @@ public class CourseController {
     @PostMapping("/api/saved-courses/{courseCode}")
     public ResponseEntity<?> addSavedCourse(@PathVariable String courseCode, @RequestBody Map<String, String> payload,
             Authentication authentication) {
-        User user = getUserFromAuthentication(authentication);
+        User user = userService.getUserFromAuthentication(authentication);
         String courseName = payload.get("courseName");
         String targetSemester = payload.get("targetSemester");
         try {
@@ -205,7 +113,7 @@ public class CourseController {
      */
     @DeleteMapping("/api/saved-courses/{courseCode}")
     public ResponseEntity<?> deleteSavedCourse(@PathVariable String courseCode, Authentication authentication) {
-        User user = getUserFromAuthentication(authentication);
+        User user = userService.getUserFromAuthentication(authentication);
         try {
             courseService.deleteSavedCourse(user.getUsername(), courseCode);
             return ResponseEntity.ok().build();
@@ -215,28 +123,6 @@ public class CourseController {
     }
 
     // --- Helper Methods ---
-
-    private List<CourseStatDto> mapToCourseStatDto(List<Course> courseMappings) {
-        return courseMappings.stream()
-                .map(course -> new CourseStatDto(
-                        course.getCourseCode(),
-                        course.getCourseName(),
-                        enrollmentRepository.countDistinctUsersByCourseCode(course.getCourseCode())))
-                .collect(Collectors.toList());
-    }
-
-    private User getUserFromAuthentication(Authentication authentication) {
-        if (authentication instanceof OAuth2AuthenticationToken) {
-            OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
-            String providerId = oauth2User.getName();
-            return userRepository.findByProviderAndProviderId("kakao", providerId)
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found with providerId: " + providerId));
-        } else {
-            String username = authentication.getName();
-            return userRepository.findByUsername(username)
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-        }
-    }
 
     private Map<String, Object> generateFutureSemesterOptions(User user) {
         int startYear;
