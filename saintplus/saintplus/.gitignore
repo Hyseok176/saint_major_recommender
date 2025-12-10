@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+### Custom (직접 추가) ###
+# DB 비밀번호, API 키 등 민감 정보가 담긴 설정 파일
+/src/main/resources/application.properties
