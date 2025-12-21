@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updateMajors } from '../api/authApi';
-import { extractMajors, uploadAndParse } from '../api/transcriptApi';
+import { uploadAndParse } from '../api/transcriptApi';
 import './InitialSetup.css';
 
 // 헤더 로고 이미지
@@ -14,7 +14,6 @@ function InitialSetup() {
   const [credits, setCredits] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [extractedMajors, setExtractedMajors] = useState([]);
   const navigate = useNavigate();
 
   const handleFileChange = async (e) => {
@@ -23,11 +22,9 @@ function InitialSetup() {
     
     setSelectedFile(file);
     
-    // 파일 선택 즉시 업로드 및 전공 추출
+    // 파일 선택 즉시 업로드
     setLoading(true);
     try {
-      const majors = await extractMajors(file);
-      setExtractedMajors(majors);
       
       // 추출된 전공을 자동으로 입력
       if (majors.length > 0) setMajor1(majors[0] || '');
