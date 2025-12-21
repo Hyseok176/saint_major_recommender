@@ -22,24 +22,8 @@ function InitialSetup() {
     
     setSelectedFile(file);
     
-    // 파일 선택 즉시 업로드
-    setLoading(true);
-    try {
-      
-      // 추출된 전공을 자동으로 입력
-      if (majors.length > 0) setMajor1(majors[0] || '');
-      if (majors.length > 1) setMajor2(majors[1] || '');
-      if (majors.length > 2) setMajor3(majors[2] || '');
-      
-      alert('파일에서 전공 정보를 추출했습니다!');
-    } catch (error) {
-      console.error('파일 업로드 실패:', error);
-      console.error('에러 응답:', error.response);
-      const errorMessage = error.response?.data?.message || error.message || '알 수 없는 오류';
-      alert(`파일 업로드에 실패했습니다.\n오류: ${errorMessage}`);
-    } finally {
-      setLoading(false);
-    }
+    // 파일 선택만 처리 (업로드는 저장 시 수행)
+    alert('파일이 선택되었습니다. 전공을 입력하고 저장 버튼을 눌러주세요.');
   };
 
   const handleSave = async () => {
