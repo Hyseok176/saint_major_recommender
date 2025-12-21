@@ -49,9 +49,16 @@ jobs:
         scp -i private_key.pem -o StrictHostKeyChecking=no \
           saintplus/saintplus/build/libs/*.jar ${USER}@${HOST}:/home/ubuntu/saintplus.jar
         
-        # React 빌드 파일 전송
+        # 기존 React 빌드 삭제 및 새로 전송
+        ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} \
+          'rm -rf /home/ubuntu/frontend-build && mkdir -p /home/ubuntu/frontend-build'
+        
         scp -i private_key.pem -o StrictHostKeyChecking=no -r \
-          saintplus/frontend/build ${USER}@${HOST}:/home/ubuntu/frontend-build
+          saintplus/frontend/build/* ${USER}@${HOST}:/home/ubuntu/frontend-build/
+        
+        # 권한 설정
+        ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} \
+          'chmod -R 755 /home/ubuntu/frontend-build'
         
         # Spring Boot 재시작
         ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} \
