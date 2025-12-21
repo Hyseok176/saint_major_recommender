@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-ro
 import Login from './components/Login';
 import Register from './components/Register';
 import InitialSetup from './components/InitialSetup';
+import Recommendation from './components/Recommendation';
 import TranscriptUpload from './components/TranscriptUpload';
 import Recommendations from './components/Recommendations';
 import AiRecommendations from './components/AiRecommendations';
@@ -39,6 +40,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <InitialSetup />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 추천 페이지 */}
+          <Route 
+            path="/recommend" 
+            element={
+              <ProtectedRoute>
+                <Recommendation />
               </ProtectedRoute>
             } 
           />

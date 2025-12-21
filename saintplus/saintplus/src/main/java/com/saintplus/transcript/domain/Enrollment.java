@@ -2,15 +2,13 @@ package com.saintplus.transcript.domain;
 
 import com.saintplus.user.domain.User;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
 @Entity
+@Table(name = "semester_course")
 @Data
-//@Getter
-//@ToString(exclude = "user")
-//@NoArgsConstructor(access = AccessLevel.PROTECTED)
-//@AllArgsConstructor
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Enrollment {
 

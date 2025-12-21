@@ -53,7 +53,7 @@ public class CourseController {
         User user = userService.getUserFromAuthentication(authentication);
 
         // 지금은 cart / dismissed 비워서 호출
-        List<String> recommendations =
+        List<RecommendedCourseDto> recommendations =
                 recommendationService.getStatisticBasedRecommendations(user.getId());
 
         return ResponseEntity.ok(recommendations);

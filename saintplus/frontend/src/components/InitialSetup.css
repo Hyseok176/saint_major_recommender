@@ -45,23 +45,21 @@
 .header-actions {
   display: flex;
   gap: 20px;
+  align-items: center;
 }
 
 .mypage-btn,
 .logout-btn {
-  padding: 12px 36px;
-  border-radius: 28px;
-  border: 1px solid #606060;
-  font-family: 'Spoqa Han Sans Neo', sans-serif;
-  font-weight: 500;
-  font-size: 16px;
-  color: #5e5e6d;
-  cursor: pointer;
-  background-color: white;
-}
-
-.mypage-btn {
+  width: 119px;
+  height: 40px;
   background-color: #e7e7f0;
+  border: none;
+  border-radius: 15px;
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: #131313;
+  cursor: pointer;
 }
 
 .mypage-btn:hover,

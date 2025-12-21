@@ -64,7 +64,7 @@ function InitialSetup() {
         alert('전공 정보가 저장되었습니다!');
       }
       
-      navigate('/recommendations');
+      navigate('/recommend');
     } catch (error) {
       console.error('저장 실패:', error);
       const errorMessage = error.response?.data?.message || error.message || '알 수 없는 오류';
@@ -91,8 +91,8 @@ function InitialSetup() {
           <button className="nav-item">시간표 공유하기</button>
         </nav>
         <div className="header-actions">
-          <button className="mypage-btn">My Page</button>
-          <button className="logout-btn" onClick={handleLogout}>LOGOUT</button>
+          <button className="mypage-btn">마이페이지</button>
+          <button className="logout-btn" onClick={handleLogout}>로그아웃</button>
         </div>
       </header>
 
