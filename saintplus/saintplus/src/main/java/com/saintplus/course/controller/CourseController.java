@@ -41,7 +41,7 @@ public class CourseController {
 
 
     /**
-     * 사용자 맞춤 과목 추천 (통계 기반 or AI 기반)
+     * 사용자 맞춤 과목 추천 (통계 기반 )
      *
      * URL: /api/recommendations
      */
@@ -54,11 +54,29 @@ public class CourseController {
 
         // 지금은 cart / dismissed 비워서 호출
         List<String> recommendations =
-                recommendationService.getRecommendCourses(user.getId());
+                recommendationService.getStatisticBasedRecommendations(user.getId());
 
         return ResponseEntity.ok(recommendations);
     }
+    /**
+     * [AI 문맥 기반 추천 API]
+     * prompt와 major를 Param으로 입력 받음
+     */
+    @GetMapping("/api/ai-recommend")
+    public ResponseEntity<List<RecommendedCourseDto>> getAIRecommend(
+            @RequestParam String prompt,
+            @RequestParam String major,
+            Authentication authentication) {
 
+        User user = userService.getUserFromAuthentication(authentication);
+        if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        // 수정한 서비스 함수 호출
+        List<RecommendedCourseDto> recommendations =
+                recommendationService.getAIRecommendations(user.getId(), prompt, major);
+
+        return ResponseEntity.ok(recommendations);
+    }
 
     /**
      * 수강 결과 데이터를 반환합니다.

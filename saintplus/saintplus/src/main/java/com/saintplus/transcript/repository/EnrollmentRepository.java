@@ -6,12 +6,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Arrays;
 import java.util.List;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findByUser(User user);
 
     long countByUserId(Long userId);
+
+    List<Enrollment> findAllByUserId(Long userId);
 
     List<Enrollment> findByCourseCode(String courseCode);
 
