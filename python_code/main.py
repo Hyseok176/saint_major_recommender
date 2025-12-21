@@ -17,7 +17,7 @@ app = FastAPI()
 # CORS 설정 (스프링 부트 연동용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080"],  
+    allow_origins=["*"],  
     allow_methods=["*"],
     allow_headers=["*"],
 )
