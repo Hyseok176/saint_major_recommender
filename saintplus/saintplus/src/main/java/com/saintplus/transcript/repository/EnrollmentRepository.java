@@ -11,6 +11,8 @@ import java.util.List;
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findByUser(User user);
 
+    long countByUserId(Long userId);
+
     List<Enrollment> findByCourseCode(String courseCode);
 
     @Query("SELECT COUNT(DISTINCT sc.user.id) FROM Enrollment sc WHERE sc.courseCode = :courseCode")

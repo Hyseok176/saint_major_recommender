@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.saintplus.course.service.RecommendationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -33,8 +34,30 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CourseController {
 
+    private final RecommendationService recommendationService;
     private final CourseService courseService;
     private final UserService userService;
+
+
+    /**
+     * 사용자 맞춤 과목 추천 (통계 기반 or AI 기반)
+     *
+     * URL: /api/recommendations
+     */
+    @GetMapping("/api/recommendations")
+    public ResponseEntity<?> getRecommendations(
+            Authentication authentication,
+            @RequestParam(required = false) Integer semester
+    ) {
+        User user = userService.getUserFromAuthentication(authentication);
+
+        // 지금은 cart / dismissed 비워서 호출
+        List<String> recommendations =
+                recommendationService.getRecommendCourses(user.getId());
+
+        return ResponseEntity.ok(recommendations);
+    }
+
 
     /**
      * 수강 결과 데이터를 반환합니다.
