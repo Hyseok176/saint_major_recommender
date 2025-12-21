@@ -3,6 +3,7 @@ package com.saintplus.transcript.service;
 import com.saintplus.transcript.dto.UploadUrlResponse;
 import com.saintplus.transcript.util.StorageClient;
 import com.saintplus.user.service.UserService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,22 @@ public class TranscriptService {
 
     public List<String> extractMajors(MultipartFile file) throws IOException {
         return transcriptParser.extractMajorsFromFile(file.getInputStream());
+    }
+
+    @Transactional
+    public void parseAndSaveTranscript(Long userId, MultipartFile file, String major1, String major2, String major3) throws IOException {
+        log.info("Starting direct parsing for userId: {}", userId);
+        
+        // 전공 정보 업데이트
+        userService.updateUserData(userId, major1, major2, major3);
+        
+        // 파일을 임시로 저장하고 파싱
+        String tempFileKey = "temp/" + userId + "/" + System.currentTimeMillis() + "/" + file.getOriginalFilename();
+        
+        // Worker에게 파싱 작업 위임 (파일 내용을 직접 전달)
+        transcriptParsingWorker.parseFromInputStream(userId, file.getInputStream());
+        
+        log.info("Direct parsing completed for userId: {}", userId);
     }
 
 

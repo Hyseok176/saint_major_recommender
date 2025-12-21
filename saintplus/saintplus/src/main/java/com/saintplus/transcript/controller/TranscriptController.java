@@ -13,15 +13,19 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
 @RequestMapping("/api/v1/transcripts")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class TranscriptController {
 
     private final TranscriptService transcriptService;
+    private final com.saintplus.common.security.JwtTokenProvider jwtTokenProvider;
 
 
     // 전공 먼저 추출
@@ -31,6 +35,36 @@ public class TranscriptController {
 
         List<String> majors = transcriptService.extractMajors(file);
         return ResponseEntity.ok(majors);
+    }
+
+    // 파일 업로드 및 파싱 (직접 파싱 - S3 사용 안함)
+    @PostMapping("/upload-and-parse")
+    public ResponseEntity<Map<String, Object>> uploadAndParse(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("major1") String major1,
+            @RequestParam(value = "major2", required = false, defaultValue = "") String major2,
+            @RequestParam(value = "major3", required = false, defaultValue = "") String major3,
+            @RequestHeader("Authorization") String token) throws IOException {
+        
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // JWT에서 userId 추출
+            String jwtToken = token.replace("Bearer ", "");
+            Long userId = jwtTokenProvider.getUserId(jwtToken);
+            
+            // 파일 파싱 및 저장
+            transcriptService.parseAndSaveTranscript(userId, file, major1, major2, major3);
+            
+            response.put("success", true);
+            response.put("message", "성적표 파싱 및 저장이 완료되었습니다.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "파싱 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
     }
 
 

@@ -1,0 +1,241 @@
+.initial-setup-container {
+  min-height: 100vh;
+  background-color: #ffffff;
+}
+
+/* 헤더 */
+.setup-header {
+  height: 104px;
+  display: flex;
+  align-items: center;
+  padding: 0 27px;
+  border-bottom: 1px solid #606060;
+  background-color: white;
+  position: relative;
+}
+
+.header-logo {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.header-nav {
+  display: flex;
+  gap: 80px;
+  margin-left: 80px;
+  flex: 1;
+}
+
+.nav-item {
+  background: none;
+  border: none;
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: #5e5e6d;
+  cursor: pointer;
+  padding: 0;
+}
+
+.nav-item:hover {
+  color: #3c3c3c;
+}
+
+.header-actions {
+  display: flex;
+  gap: 20px;
+}
+
+.mypage-btn,
+.logout-btn {
+  padding: 12px 36px;
+  border-radius: 28px;
+  border: 1px solid #606060;
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  color: #5e5e6d;
+  cursor: pointer;
+  background-color: white;
+}
+
+.mypage-btn {
+  background-color: #e7e7f0;
+}
+
+.mypage-btn:hover,
+.logout-btn:hover {
+  background-color: #d0d0e0;
+}
+
+/* 메인 콘텐츠 */
+.setup-content {
+  max-width: 1406px;
+  margin: 70px auto;
+  padding: 0 40px;
+}
+
+/* 파일 다운로드 안내 */
+.download-guide {
+  background-color: white;
+  border: 1px solid #606060;
+  border-radius: 15px;
+  padding: 80px;
+  text-align: center;
+  margin-bottom: 70px;
+}
+
+.download-guide h2 {
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-weight: 600;
+  font-size: 23px;
+  color: #414141;
+  margin: 0 0 20px 0;
+}
+
+.download-guide p {
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-size: 18px;
+  color: #5e5e6d;
+  margin: 0;
+}
+
+/* 전공 선택 */
+.major-selection {
+  background-color: white;
+  border: 1px solid #606060;
+  border-radius: 15px;
+  padding: 40px 47px;
+  margin-bottom: 70px;
+}
+
+.major-selection h3 {
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-weight: 500;
+  font-size: 22px;
+  color: #414141;
+  margin: 0 0 30px 0;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #606060;
+}
+
+.major-input-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.major-input-group label {
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-size: 20px;
+  color: #414141;
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.major-input,
+.major-select {
+  flex: 1;
+  max-width: 237px;
+  height: 39px;
+  padding: 8px 20px;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  background-color: #e7e7f0;
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-size: 20px;
+  color: #414141;
+}
+
+.major-input.active {
+  background-color: white;
+}
+
+.major-input:focus,
+.major-select:focus {
+  outline: none;
+  border-color: #FEE500;
+  box-shadow: 0 0 0 2px rgba(254, 229, 0, 0.2);
+}
+
+.credits-group {
+  display: flex;
+  align-items: center;
+  margin-top: 30px;
+  gap: 15px;
+}
+
+.credits-group label {
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-size: 20px;
+  color: #414141;
+}
+
+.credits-input {
+  width: 82px;
+  height: 39px;
+  padding: 8px;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  background-color: #e7e7f0;
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-size: 20px;
+  color: #414141;
+  text-align: center;
+}
+
+.credits-total {
+  font-family: 'Spoqa Han Sans Neo', sans-serif;
+  font-size: 20px;
+  color: #414141;
+}
+
+/* 버튼 영역 */
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 50px;
+  margin-top: 70px;
+}
+
+.upload-btn,
+.save-btn {
+  width: 198px !important;
+  min-width: 198px;
+  max-width: 198px;
+  height: 74px !important;
+  min-height: 74px;
+  max-height: 74px;
+  border-radius: 15px !important;
+  border: 1px solid #3c3c3c !important;
+  background-color: #e7e7f0 !important;
+  font-family: 'Spoqa Han Sans Neo', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 24px !important;
+  color: #000000 !important;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.upload-btn:hover,
+.save-btn:hover {
+  background-color: #d8d8e0 !important;
+  transform: translateY(-1px);
+}
+
+.upload-btn:active,
+.save-btn:active {
+  transform: translateY(0);
+  background-color: #c8c8d0 !important;
+}

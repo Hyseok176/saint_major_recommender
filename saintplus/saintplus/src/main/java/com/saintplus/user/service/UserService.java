@@ -22,10 +22,15 @@ public class UserService {
     @Transactional
     public void updateUserData(Long userId, String major1, String major2, String major3) {
 
+        System.out.println("===== updateUserData 시작 =====");
+        System.out.println("입력 - userId: " + userId + ", major1: " + major1 + ", major2: " + major2 + ", major3: " + major3);
+        
         //사용자 존재 확인
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
+        System.out.println("변경 전 - major1: " + user.getMajor1() + ", major2: " + user.getMajor2() + ", major3: " + user.getMajor3());
+        
         //사용자 정보 업데이트
         if (user.getCreatedAt() == null) {
             user.setCreatedAt(java.time.LocalDateTime.now());
@@ -34,7 +39,13 @@ public class UserService {
         user.setMajor1(major1.replace(" ", ""));
         user.setMajor2(major2.replace(" ", ""));
         user.setMajor3(major3.replace(" ", ""));
-        userRepository.save(user);
+        
+        System.out.println("변경 후 - major1: " + user.getMajor1() + ", major2: " + user.getMajor2() + ", major3: " + user.getMajor3());
+        
+        User savedUser = userRepository.save(user);
+        
+        System.out.println("저장 완료 - major1: " + savedUser.getMajor1() + ", major2: " + savedUser.getMajor2() + ", major3: " + savedUser.getMajor3());
+        System.out.println("===== updateUserData 종료 =====");
     }
 
     /**

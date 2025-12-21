@@ -46,6 +46,34 @@ public class TranscriptParsingWorker {
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucketName;
 
+    @Transactional
+    public void parseFromInputStream(Long userId, java.io.InputStream inputStream) throws java.io.IOException {
+        try {
+            log.info("Start direct parsing from InputStream. userId={}", userId);
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalStateException("User not found"));
+
+            // InputStream을 byte array로 변환
+            byte[] fileBytes = inputStream.readAllBytes();
+
+            // 파일 내용 분석, 전처리 및 분류, 새로운 과목 및 수강이력 DB 저장
+            TranscriptScanResult rawResult = transcriptParser.analyzeFile(new ByteArrayInputStream(fileBytes), userId.toString());
+
+            saveNewCoursesToDatabase(rawResult.getMappingCourseCodeName(), userId.toString());
+
+            TranscriptParsingResult parsed = transcriptParser.groupAndFormatCourses(rawResult.getRawCourses());
+
+            saveEnrollmentToDatabase(user, parsed.getCoursesBySemester());
+
+            log.info("Direct parsing complete. userId={}", userId);
+
+        } catch (Exception e) {
+            log.error("Error during direct parsing. userId={}, error={}", userId, e.getMessage(), e);
+            throw new RuntimeException("파싱 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+
 
     public void processParingAndSaving(Long userId, String fileKey) {
 
