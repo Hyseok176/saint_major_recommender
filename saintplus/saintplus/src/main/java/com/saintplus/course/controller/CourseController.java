@@ -189,4 +189,26 @@ public class CourseController {
 
         return Map.of("futureYears", years, "startSemester", startSemester);
     }
+
+    /**
+     * AI 문맥 기반 과목 추천 API
+     * 사용자가 입력한 문장(prompt)과 선택한 전공(major)을 받아 추천 리스트 반환
+     */
+    @GetMapping("/api/ai-recommend")
+    public ResponseEntity<List<RecommendedCourseDto>> getAiRecommend(
+            @RequestParam String prompt,
+            @RequestParam String major,
+            Authentication authentication) {
+        
+        // 1. 유저 인증 정보 확인
+        User user = userService.getUserFromAuthentication(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        // 2. 서비스를 통해 AI 추천 결과 수신
+        List<RecommendedCourseDto> recommendations = courseService.getAiRecommendedCourses(prompt, major);
+        
+        return ResponseEntity.ok(recommendations);
+    }
 }
