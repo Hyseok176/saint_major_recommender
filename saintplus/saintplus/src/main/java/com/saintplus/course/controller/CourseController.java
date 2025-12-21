@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.saintplus.course.dto.RecommendedCourseDto;
 import com.saintplus.course.service.RecommendationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

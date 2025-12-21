@@ -1,19 +1,18 @@
 package com.saintplus.course.service;
 
 import com.saintplus.course.domain.Course;
+import com.saintplus.course.dto.*;
 import com.saintplus.transcript.domain.Enrollment;
 import com.saintplus.course.repository.CourseRepository;
 import com.saintplus.transcript.repository.EnrollmentRepository;
 import com.saintplus.course.domain.SavedCourse;
-import com.saintplus.course.dto.CourseAnalysisData;
-import com.saintplus.course.dto.RecommendedCourseDto;
 import com.saintplus.course.repository.SavedCourseRepository;
 import com.saintplus.user.domain.User;
 import com.saintplus.user.repository.UserRepository;
-import com.saintplus.course.dto.CourseStatDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -119,7 +118,7 @@ public class CourseService {
                         return RecommendedCourseDto.builder()
                                 .course(course)
                                 .score(item.getScore()) // AI가 계산한 유사도 점수
-                                .studentCount(enrollmentRepository.countDistinctUsersByCourseCode(course.getCourseCode()))
+                                .studentCount((int) enrollmentRepository.countDistinctUsersByCourseCode(course.getCourseCode()))
                                 .build();
                     })
                     .filter(java.util.Objects::nonNull)
