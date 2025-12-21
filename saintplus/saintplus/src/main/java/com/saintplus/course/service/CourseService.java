@@ -45,6 +45,8 @@ public class CourseService {
     private static final Map<Integer, List<String>> GE_TRACKS;
     // 과목 코드 -> 트랙 이름 매핑 (추천 결과 표시용)
     private static final Map<String, String> COURSE_CODE_TO_TRACK_NAME_MAP;
+    // FastAPI 서버 주소
+    private static final String AI_SERVER_URL = "http://localhost:8000/recommend";
 
     static {
         Map<Integer, List<String>> tracks = new HashMap<>();
@@ -86,6 +88,48 @@ public class CourseService {
 
     public List<Course> getAllCourses() {
         return courseRepository.findAll();
+    }
+
+     /**
+     * AI 모델(Python FastAPI)을 통해 문맥 기반 과목 추천을 수행합니다.
+     * * @param prompt 사용자의 질문 (예: "데이터 분석과 관련된 수업")
+     * @param major 대상 전공 코드 (예: "CSE")
+     * @return 추천된 과목 코드 및 유사도 점수 리스트
+     */
+    public List<RecommendedCourseDto> getAiRecommendedCourses(String prompt, String major) {
+        RestTemplate restTemplate = new RestTemplate();
+        
+        // 1. 파이썬 서버로 보낼 요청 객체 생성
+        AiRecommendRequest request = new AiRecommendRequest(prompt, major, 0.25);
+        
+        try {
+            // 2. 파이썬 서버에 POST 요청
+            AiRecommendResponse aiResponse = restTemplate.postForObject(AI_SERVER_URL, request, AiRecommendResponse.class);
+            
+            if (aiResponse == null || aiResponse.getResults() == null) {
+                return Collections.emptyList();
+            }
+
+            // 3. 반환된 과목 코드를 바탕으로 DB에서 상세 정보 조회 및 DTO 변환
+            return aiResponse.getResults().stream()
+                    .map(item -> {
+                        Course course = courseRepository.findById(item.getCode()).orElse(null);
+                        if (course == null) return null;
+
+                        return RecommendedCourseDto.builder()
+                                .course(course)
+                                .score(item.getScore()) // AI가 계산한 유사도 점수
+                                .studentCount(enrollmentRepository.countDistinctUsersByCourseCode(course.getCourseCode()))
+                                .build();
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            // 서버 미가동 시 빈 리스트 반환
+            System.err.println("AI 추천 서버 통신 실패: " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     /**
