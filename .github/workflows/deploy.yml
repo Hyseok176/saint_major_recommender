@@ -1,0 +1,60 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main  # main 브랜치에 push 시 자동 배포
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Build React Frontend
+      run: |
+        cd saintplus/frontend
+        npm ci
+        npm run build
+    
+    - name: Build Spring Boot Backend
+      run: |
+        cd saintplus/saintplus
+        chmod +x gradlew
+        ./gradlew clean bootJar
+    
+    - name: Deploy to EC2
+      env:
+        PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        HOST: ${{ secrets.EC2_HOST }}
+        USER: ${{ secrets.EC2_USER }}
+      run: |
+        echo "$PRIVATE_KEY" > private_key.pem
+        chmod 600 private_key.pem
+        
+        # JAR 파일 전송
+        scp -i private_key.pem -o StrictHostKeyChecking=no \
+          saintplus/saintplus/build/libs/*.jar ${USER}@${HOST}:/home/ubuntu/saintplus.jar
+        
+        # React 빌드 파일 전송
+        scp -i private_key.pem -o StrictHostKeyChecking=no -r \
+          saintplus/frontend/build ${USER}@${HOST}:/home/ubuntu/frontend-build
+        
+        # Spring Boot 재시작
+        ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} \
+          'sudo systemctl restart saintplus-backend'
+        
+        rm -f private_key.pem
