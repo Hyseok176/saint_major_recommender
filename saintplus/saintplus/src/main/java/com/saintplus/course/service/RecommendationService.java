@@ -65,17 +65,19 @@ public class RecommendationService {
             List<Course> dbCourses = courseRepository.findAllById(topCodes);
 
             // 3. 안전하게 매핑
-            return topItems.stream().map(item -> {
-                Course courseInfo = dbCourses.stream()
-                        .filter(c -> c.getCourseCode().equals(item.getCode()))
-                        .findFirst()
-                        .orElseGet(() -> new Course(item.getCode(), "정보 없음")); // 데이터가 없어도 에러 안 남
-
-                return RecommendedCourseDto.builder()
-                        .score(item.getScore())
-                        .course(courseInfo)
-                        .build();
-            }).toList();
+            return topItems.stream()
+                    .map(item -> {
+                        return dbCourses.stream()
+                                .filter(c -> c.getCourseCode().equals(item.getCode()))
+                                .findFirst()
+                                .map(course -> RecommendedCourseDto.builder()
+                                        .score(item.getScore())
+                                        .course(course)
+                                        .build())
+                                .orElse(null); // DB에 없는 과목은 제외하거나 위처럼 '정보없음' 객체 생성
+                    })
+                    .filter(Objects::nonNull) // null 제외
+                    .toList();
 
         } catch (Exception e) {
             System.err.println("AI 서버 통신 실패: " + e.getMessage());
@@ -85,7 +87,7 @@ public class RecommendationService {
     }
 
 
-    // [통계 추천] (데이터 부족하거나 AI 서버 죽었을 때)
+    // [통계 추천]
     public List<String> getStatisticBasedRecommendations(Long userId) {
         User user = userService.getUserById(userId);
 

@@ -58,22 +58,25 @@ public class CourseController {
 
         return ResponseEntity.ok(recommendations);
     }
+
     /**
-     * [AI 문맥 기반 추천 API]
-     * prompt와 major를 Param으로 입력 받음
+     * AI 문맥 기반 과목 추천 API
+     * 사용자가 입력한 문장(prompt)과 선택한 전공(major)을 받아 추천 리스트 반환
      */
     @GetMapping("/api/ai-recommend")
-    public ResponseEntity<List<RecommendedCourseDto>> getAIRecommend(
+    public ResponseEntity<List<RecommendedCourseDto>> getAiRecommend(
             @RequestParam String prompt,
             @RequestParam String major,
             Authentication authentication) {
 
+        // 1. 유저 인증 정보 확인
         User user = userService.getUserFromAuthentication(authentication);
-        if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
 
-        // 수정한 서비스 함수 호출
-        List<RecommendedCourseDto> recommendations =
-                recommendationService.getAIRecommendations(user.getId(), prompt, major);
+        // 2. 서비스를 통해 AI 추천 결과 수신
+        List<RecommendedCourseDto> recommendations = recommendationService.getAIRecommendations(user.getId(), prompt, major);
 
         return ResponseEntity.ok(recommendations);
     }
@@ -209,25 +212,5 @@ public class CourseController {
         return Map.of("futureYears", years, "startSemester", startSemester);
     }
 
-    /**
-     * AI 문맥 기반 과목 추천 API
-     * 사용자가 입력한 문장(prompt)과 선택한 전공(major)을 받아 추천 리스트 반환
-     */
-    @GetMapping("/api/ai-recommend")
-    public ResponseEntity<List<RecommendedCourseDto>> getAiRecommend(
-            @RequestParam String prompt,
-            @RequestParam String major,
-            Authentication authentication) {
-        
-        // 1. 유저 인증 정보 확인
-        User user = userService.getUserFromAuthentication(authentication);
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
 
-        // 2. 서비스를 통해 AI 추천 결과 수신
-        List<RecommendedCourseDto> recommendations = courseService.getAiRecommendedCourses(prompt, major);
-        
-        return ResponseEntity.ok(recommendations);
-    }
 }
