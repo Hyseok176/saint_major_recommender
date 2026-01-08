@@ -101,7 +101,7 @@ function TranscriptUpload() {
         <input
           type="file"
           onChange={handleFileChange}
-          accept=".pdf,.jpg,.jpeg,.png"
+          accept=".txt"
           disabled={isUploading}
         />
         
