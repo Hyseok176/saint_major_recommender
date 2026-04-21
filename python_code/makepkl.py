@@ -38,4 +38,3 @@ with open('course_vectors.pkl', 'wb') as f:
     pickle.dump((df, embeddings), f)
 
 print("✅ 저장 완료! 이제 'course_vectors.pkl' 파일이 생겼습니다.")
-~
