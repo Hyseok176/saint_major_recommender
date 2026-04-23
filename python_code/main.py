@@ -1,3 +1,5 @@
+import json
+import os
 import pickle
 import torch
 from sentence_transformers import SentenceTransformer
@@ -7,6 +9,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from openai import OpenAI
 from typing import List, Optional
 
 # ==========================================
@@ -17,10 +20,14 @@ app = FastAPI()
 # CORS 설정 (스프링 부트 연동용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["http://localhost:3000", "https://saintplanner.cloud"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+openai_api_key = os.getenv("OPENAI_API_KEY")
+openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+openai_client = OpenAI(api_key=openai_api_key) if openai_api_key else None
 
 print("🚀 [서버 시작] 데이터와 AI 모델을 불러옵니다...")
 
@@ -56,10 +63,84 @@ class UserRequest(BaseModel):
 class CourseItem(BaseModel):
     code: str            # 과목 코드 (예: "CSE405")
     score: float         # 유사도 점수 (예: 0.8211)
+    reason: Optional[str] = None  # LLM이 생성한 추천 이유
 
 # [응답] 최종 반환 데이터
 class AiResponse(BaseModel):
     results: List[CourseItem]
+
+
+def _build_course_snapshot(row) -> dict:
+    return {
+        "course_code": row.get("course_code", ""),
+        "course_name": row.get("course_name", ""),
+        "description_keywords": row.get("description_keywords", []),
+        "career_keywords": row.get("career_keywords", []),
+    }
+
+
+def _generate_reasons_with_llm(prompt: str, target: str, ranked_courses: List[dict]) -> dict:
+    if not openai_client or not ranked_courses:
+        return {}
+
+    courses_payload = []
+    for course in ranked_courses:
+        keywords = course["description_keywords"]
+        careers = course["career_keywords"]
+        courses_payload.append({
+            "course_code": course["course_code"],
+            "course_name": course["course_name"],
+            "score": course["score"],
+            "description_keywords": keywords if isinstance(keywords, list) else [],
+            "career_keywords": careers if isinstance(careers, list) else [],
+        })
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "당신은 과목 추천 설명 도우미입니다. "
+                "반드시 JSON 객체만 반환하세요. "
+                "형식: {\"reasons\": [{\"course_code\": \"...\", \"reason\": \"...\"}]}"
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"사용자 질문: {prompt}\n"
+                f"전공 prefix: {target}\n"
+                f"후보 과목(JSON): {json.dumps(courses_payload, ensure_ascii=False)}\n\n"
+                "요구사항:\n"
+                "1) 각 과목마다 추천 이유를 1~2문장 한국어로 작성\n"
+                "2) 질문/키워드/진로 연관성 중심으로 설명\n"
+                "3) 제공된 정보 밖의 추측 금지\n"
+                "4) JSON 외 텍스트 금지"
+            ),
+        },
+    ]
+
+    response = openai_client.chat.completions.create(
+        model=openai_model,
+        messages=messages,
+        temperature=0.2,
+    )
+
+    content = response.choices[0].message.content if response.choices else ""
+    if not content:
+        return {}
+
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError:
+        return {}
+
+    reason_map = {}
+    for item in parsed.get("reasons", []):
+        code = item.get("course_code")
+        reason = item.get("reason")
+        if code and reason:
+            reason_map[code] = reason
+    return reason_map
 
 
 # ==========================================
@@ -97,13 +178,18 @@ async def recommend_courses(req: UserRequest):
     # 점수가 높은 순서대로 인덱스 정렬
     sorted_indices = scores.argsort()[::-1]
 
+    top_k = 8
     items = []
+    ranked_courses = []
     for i in sorted_indices:
         score = float(scores[i])
         
         # 설정한 점수(threshold) 이상인 경우에만 결과에 포함
         if score >= req.threshold:
             row = filtered_df.iloc[i]
+            snapshot = _build_course_snapshot(row)
+            snapshot["score"] = round(score, 4)
+            ranked_courses.append(snapshot)
             
             # 응답 객체 생성
             item = CourseItem(
@@ -111,6 +197,13 @@ async def recommend_courses(req: UserRequest):
                 score=round(score, 4)  # 소수점 4자리까지 반올림
             )
             items.append(item)
+
+            if len(items) >= top_k:
+                break
+
+    reason_map = _generate_reasons_with_llm(req.prompt, req.target, ranked_courses)
+    for item in items:
+        item.reason = reason_map.get(item.code)
 
     # 최종 결과 반환
     return {"results": items}

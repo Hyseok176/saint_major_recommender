@@ -8,15 +8,47 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/recommendations")
-@CrossOrigin(origins = {"http://localhost:3000", "https://saintplanner.cloud"}, allowCredentials = "true")
 @RequiredArgsConstructor
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
     private final JwtTokenProvider jwtTokenProvider;
+
+    /**
+     * 통합 추천 엔드포인트
+     * type=statistics | ai
+     */
+    @GetMapping
+    public ResponseEntity<List<RecommendedCourseDto>> getRecommendations(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam(defaultValue = "statistics") String type,
+            @RequestParam(required = false) String prompt,
+            @RequestParam(required = false) String major
+    ) {
+        String token = authHeader.replace("Bearer ", "");
+        Long userId = jwtTokenProvider.getUserId(token);
+
+        String normalizedType = type.toLowerCase(Locale.ROOT);
+        if ("ai".equals(normalizedType)) {
+            if (prompt == null || prompt.isBlank()) {
+                return ResponseEntity.badRequest().build();
+            }
+            if (major == null || major.isBlank()) {
+                major = "CSE";
+            }
+            return ResponseEntity.ok(recommendationService.getAIRecommendations(userId, prompt, major));
+        }
+
+        if ("statistics".equals(normalizedType)) {
+            return ResponseEntity.ok(recommendationService.getStatisticBasedRecommendations(userId));
+        }
+
+        return ResponseEntity.badRequest().build();
+    }
 
     /**
      * AI 기반 추천 (프롬프트 입력)
@@ -27,16 +59,7 @@ public class RecommendationController {
             @RequestParam String prompt,
             @RequestParam(required = false) String major
     ) {
-        String token = authHeader.replace("Bearer ", "");
-        Long userId = jwtTokenProvider.getUserId(token);
-        
-        // major가 없으면 사용자의 첫 번째 전공 사용 (필요시 구현)
-        if (major == null || major.isEmpty()) {
-            major = "CSE"; // 기본값
-        }
-        
-        List<RecommendedCourseDto> recommendations = recommendationService.getAIRecommendations(userId, prompt, major);
-        return ResponseEntity.ok(recommendations);
+        return getRecommendations(authHeader, "ai", prompt, major);
     }
 
     /**
@@ -46,10 +69,6 @@ public class RecommendationController {
     public ResponseEntity<List<RecommendedCourseDto>> getStatisticsRecommendations(
             @RequestHeader("Authorization") String authHeader
     ) {
-        String token = authHeader.replace("Bearer ", "");
-        Long userId = jwtTokenProvider.getUserId(token);
-        
-        List<RecommendedCourseDto> recommendations = recommendationService.getStatisticBasedRecommendations(userId);
-        return ResponseEntity.ok(recommendations);
+        return getRecommendations(authHeader, "statistics", null, null);
     }
 }

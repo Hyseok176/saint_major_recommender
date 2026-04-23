@@ -21,7 +21,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/transcripts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:3000", "https://saintplanner.cloud"}, allowCredentials = "true")
 public class TranscriptController {
 
     private final TranscriptService transcriptService;

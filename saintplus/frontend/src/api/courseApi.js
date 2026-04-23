@@ -9,8 +9,8 @@ export const getRecommendations = async (semester) => {
 
 // AI 기반 과목 추천 API
 export const getAiRecommendations = async (prompt, major) => {
-  const response = await api.get('/api/ai-recommend', {
-    params: { prompt, major },
+  const response = await api.get('/api/recommendations', {
+    params: { type: 'ai', prompt, major },
   });
   return response.data;
 };

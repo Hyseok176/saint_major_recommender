@@ -5,8 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.saintplus.course.dto.RecommendedCourseDto;
-import com.saintplus.course.service.RecommendationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -35,51 +33,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CourseController {
 
-    private final RecommendationService recommendationService;
     private final CourseService courseService;
     private final UserService userService;
-
-
-    /**
-     * 사용자 맞춤 과목 추천 (통계 기반 )
-     *
-     * URL: /api/recommendations
-     */
-    @GetMapping("/api/recommendations")
-    public ResponseEntity<?> getRecommendations(
-            Authentication authentication,
-            @RequestParam(required = false) Integer semester
-    ) {
-        User user = userService.getUserFromAuthentication(authentication);
-
-        // 지금은 cart / dismissed 비워서 호출
-        List<RecommendedCourseDto> recommendations =
-                recommendationService.getStatisticBasedRecommendations(user.getId());
-
-        return ResponseEntity.ok(recommendations);
-    }
-
-    /**
-     * AI 문맥 기반 과목 추천 API
-     * 사용자가 입력한 문장(prompt)과 선택한 전공(major)을 받아 추천 리스트 반환
-     */
-    @GetMapping("/api/ai-recommend")
-    public ResponseEntity<List<RecommendedCourseDto>> getAiRecommend(
-            @RequestParam String prompt,
-            @RequestParam String major,
-            Authentication authentication) {
-
-        // 1. 유저 인증 정보 확인
-        User user = userService.getUserFromAuthentication(authentication);
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        // 2. 서비스를 통해 AI 추천 결과 수신
-        List<RecommendedCourseDto> recommendations = recommendationService.getAIRecommendations(user.getId(), prompt, major);
-
-        return ResponseEntity.ok(recommendations);
-    }
 
     /**
      * 수강 결과 데이터를 반환합니다.
