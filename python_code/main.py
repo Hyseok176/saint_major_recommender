@@ -12,6 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from typing import List, Optional
 
+
+def _get_allowed_origins() -> List[str]:
+    env_value = os.getenv("ALLOWED_ORIGINS")
+    if env_value:
+        return [origin.strip() for origin in env_value.split(",") if origin.strip()]
+    return ["http://localhost:3000", "https://saintplanner.cloud"]
+
 # ==========================================
 # 1. FastAPI 앱 설정 및 데이터 로딩 (전역)
 # ==========================================
@@ -20,7 +27,7 @@ app = FastAPI()
 # CORS 설정 (스프링 부트 연동용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://saintplanner.cloud"],
+    allow_origins=_get_allowed_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -28,12 +35,16 @@ app.add_middleware(
 openai_api_key = os.getenv("OPENAI_API_KEY")
 openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 openai_client = OpenAI(api_key=openai_api_key) if openai_api_key else None
+course_vectors_path = os.getenv("COURSE_VECTORS_PATH", "course_vectors.pkl")
+
+if not openai_api_key:
+    print("⚠️ [설정] OPENAI_API_KEY가 없어 추천 이유 생성은 비활성화됩니다.")
 
 print("🚀 [서버 시작] 데이터와 AI 모델을 불러옵니다...")
 
 try:
     # 1. 데이터 로딩 (pkl 파일)
-    with open('course_vectors.pkl', 'rb') as f:
+    with open(course_vectors_path, 'rb') as f:
         df, course_embeddings = pickle.load(f)
     print("   ㄴ 데이터 로딩 완료!")
 
@@ -45,7 +56,7 @@ try:
     print("✅ 시스템 준비 완료! 요청을 기다립니다.")
 
 except FileNotFoundError:
-    print("❌ [오류] 'course_vectors.pkl' 파일이 없습니다.")
+    print(f"❌ [오류] '{course_vectors_path}' 파일이 없습니다.")
     sys.exit(1)
 
 
@@ -146,6 +157,13 @@ def _generate_reasons_with_llm(prompt: str, target: str, ranked_courses: List[di
 # ==========================================
 # 3. 핵심 로직 및 API 엔드포인트
 # ==========================================
+
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "ok",
+        "openai_reason_enabled": bool(openai_client),
+    }
 
 @app.post("/recommend", response_model=AiResponse)
 async def recommend_courses(req: UserRequest):
